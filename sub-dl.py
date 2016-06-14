@@ -14,7 +14,18 @@ def unpack_sub(file, out_dir):
 	
 	with ZipFile(file, "r") as zip:
 		zip.extractall(out_dir)
+
 		
+def rename_file(files):
+	from os import rename
+
+	for nr, file in enumerate(files):
+		if nr == 0:
+			name = file[:-4]
+		else:
+			extension = file[-4:]
+			rename(file, name + extension)
+
 
 def main():
 	import requests
@@ -22,10 +33,12 @@ def main():
 	from sys import exit
 	from random import choice
 	from glob import glob
-	from os import remove, rename
+	from os import remove
 
 	movie_name = input("Enter movie name: ").replace(" ", "-")
-	movie_version = glob("*cloverfield*")[0]
+	movie_v = "*" + movie_name.replace("-", ".") + "*"
+	movie_version = glob(movie_v)[0]
+	print(movie_version)
 	subtitles = []
 
 	r = requests.get("https://subscene.com/subtitles/{}/english".format(movie_name))
@@ -54,6 +67,9 @@ def main():
 	download_sub("subtitle.zip", r) # Downloads subtitles
 	unpack_sub("subtitle.zip", movie_version) # Unpacks .zip file
 	remove("subtitle.zip") # Deletes .zip file
+	
+	files = glob(movie_version + "/" + movie_v)
+	rename_file(files) # Unifies movie and subtitle filenames
 	
 	print("Done.")
 
