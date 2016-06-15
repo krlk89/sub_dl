@@ -34,13 +34,13 @@ def main():
 	from random import choice
 	from glob import glob
 	from os import remove
-
+	
+	subtitles = []
 	movie_name = input("Enter movie name: ").replace(" ", "-")
 	movie_v = "*" + movie_name.replace("-", ".") + "*"
-	movie_version = glob(movie_v)[0]
-	print(movie_version)
-	subtitles = []
-
+	try: movie_version = glob(movie_v)[0]
+	except IndexError: exit("Directory not found.")
+		
 	r = requests.get("https://subscene.com/subtitles/{}/english".format(movie_name))
 	soup = BeautifulSoup(r.text, "html.parser")
 
@@ -49,9 +49,7 @@ def main():
 		if len(y) > 1 and movie_version in str(y) and "positive" in str(y):
 			subtitles.append(link.get("href"))
 	
-	if len(subtitles) == 0:		
-		print("Sorry. No subtitles found.")
-		exit()
+	if len(subtitles) == 0: exit("Sorry. No subtitles found.")
 	
 	sub = choice(subtitles)
 	r = requests.get("https://subscene.com{}".format(sub))
@@ -71,6 +69,6 @@ def main():
 	files = glob(movie_version + "/" + movie_v)
 	rename_file(files) # Unifies movie and subtitle filenames
 	
-	print("Done.")
+	exit("Done.")
 
 main()
