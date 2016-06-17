@@ -1,8 +1,30 @@
 """
-This script downloads subtitles from Subscene.
+Downloads subtitles from Subscene.
 
+TODO: Let user choose the subtitle?
+	  Make usable for tv shows
+	  ...
 """
 
+def find_subtitles(soup, movie_directory):
+	from bs4 import BeautifulSoup
+	
+	subtitles = []
+	
+	for table_row in soup.find_all("tr"):
+		subtitle_info = str(table_row).lower()
+		if "<td class=\"a41\">" not in subtitle_info and movie_directory.lower() in subtitle_info and "positive" in subtitle_info:
+			subtitles.append(table_row.find_all("a")[0].get("href")) # Subtitle link
+			
+	return subtitles
+
+	
+def find_download_link(soup):
+	for link in soup.find_all("a"):
+		if "download" in str(link):
+			return link.get("href")
+	
+	
 def download_subtitle(local_filename, download_link):
 	with open(local_filename, 'wb') as f:
 		for chunk in download_link.iter_content(chunk_size = 2048): 
@@ -37,9 +59,9 @@ def main():
 	from os import remove
 	
 	download_directory = "C:\\Users\\Kaarel\\Downloads\\"
-	subtitles = []
+	
 	movie_name = input("Enter movie name: ").replace(" ", "-")
-	#movie_name = "10-cloverfield-lane" # For debugging
+	movie_name = "10-cloverfield-lane" # For debugging
 	movie_wildcard_name = movie_name.replace("-", "*")
 
 	try:
@@ -50,26 +72,14 @@ def main():
 	r = requests.get("https://subscene.com/subtitles/{}/english".format(movie_name))
 	soup = BeautifulSoup(r.text, "html.parser")
 	
-	# Find all suitable subtitles
-	for table_row in soup.find_all("tr"):
-		if "<td class=\"a41\">" not in str(table_row):
-			description = table_row.find_all("a")
-			for info in description:
-				if len(description) > 1 and movie_directory.lower() in str(description).lower() and "positive" in str(description):
-					subtitles.append(info.get("href"))
-					break
-
+	subtitles = find_subtitles(soup, movie_directory) # Find all suitable subtitles
 	if len(subtitles) == 0: exit("No subtitles found.")
-	sub = choice(subtitles)
+	sub = choice(subtitles) # Choose one from suitable subtitles
 	
 	r = requests.get("https://subscene.com{}".format(sub))
 	soup = BeautifulSoup(r.text, "html.parser")
 	
-	# Find download link from subtitle page
-	for link in soup.find_all("a"):
-		if "download" in str(link):
-			download_link = link.get("href")
-			break
+	download_link = find_download_link(soup) # Find download link from subtitle page
 			
 	r = requests.get("https://subscene.com/{}".format(download_link))
 	
