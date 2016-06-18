@@ -1,14 +1,14 @@
 """
 Downloads subtitles from Subscene.
 
-TODO: Let user choose the subtitle?
+TODO: Rename the subtitle file not the movie file.
+	  Let user choose the subtitle?
 """
 
 def is_tv_series(directory):
 	from re import search
 	
 	tv = search("\.S\d{2}E\d{2}\.", directory)
-	
 	if tv:
 		return search("S\d{2}", tv.group()).group()
 	
@@ -16,16 +16,25 @@ def is_tv_series(directory):
 
 	
 def tv_seasons(key):
-
 	seasons = {"S01": "first", "S02": "second", "S03": "third", "S04": "fourth", "S05": "fifth",
-		"S06": "sixth", "S07": "seventh", "S08": "eighth", "S09": "ninth", "S10": "tenth"}
+		"S06": "sixth", "S07": "seventh", "S08": "eighth", "S09": "ninth", "S10": "tenth",
+		"S11": "eleventh", "S12": "twelfth", "S13": "thirteenth", "S14": "fourteenth", "S15": "fifteenth",
+		"S16": "sixteenth", "S17": "seventeenth", "S18": "eighteenth", "S19": "nineteenth", "S20": "twentieth",}
 	
 	return seasons[key]
 	
 
-def find_subtitles(soup, movie_directory):
-	from bs4 import BeautifulSoup
+def find_subtitle_page(soup, movie_name):
+	for list in soup.find_all("li"):
+		if all(word in str(list).lower() for word in movie_name.split("-")):
+			return list.find_all("a")[0].get("href")
+
+
+#def soup():
 	
+
+	
+def find_subtitles(soup, movie_directory):
 	subtitles = []
 	
 	for table_row in soup.find_all("tr"):
@@ -70,26 +79,28 @@ def rename_file(files):
 def main():
 	import requests
 	from bs4 import BeautifulSoup
-	from sys import exit
+	from sys import argv, exit
 	from random import choice
 	from glob import glob
 	from os import remove
 	
 	download_directory = "C:\\Users\\Kaarel\\Downloads\\"
 	movie_name = input("Enter movie name: ").replace(" ", "-")
-	#movie_name = "10-cloverfield-lane" # For debugging
 	movie_wildcard_name = movie_name.replace("-", "*")
-
-	try:
-		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0]
-		movie_directory = movie_directory.split("\\")[-1]
+	
+	try: movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0].split("\\")[-1]
 	except IndexError: exit("Movie directory not found.")
 	
 	is_tv = is_tv_series(movie_directory)
 	if is_tv:
 		movie_name += "-{}-season".format(tv_seasons(is_tv))
 	
-	r = requests.get("https://subscene.com/subtitles/{}/english".format(movie_name))
+	sub_search = requests.get("https://subscene.com/subtitles/title?q={}&l=".format(movie_name.replace("-", "+")))
+	soup = BeautifulSoup(sub_search.text, "html.parser")
+	
+	movie_name = find_subtitle_page(soup, movie_name) # Find correct subtitle page
+	
+	r = requests.get("https://subscene.com{}/english".format(movie_name))
 	soup = BeautifulSoup(r.text, "html.parser")
 	
 	subtitles = find_subtitles(soup, movie_directory) # Find all suitable subtitles
@@ -98,9 +109,7 @@ def main():
 	
 	r = requests.get("https://subscene.com{}".format(sub))
 	soup = BeautifulSoup(r.text, "html.parser")
-	
-	download_link = find_download_link(soup) # Find download link from subtitle page
-			
+	download_link = find_download_link(soup) # Find download link from the subtitle page
 	r = requests.get("https://subscene.com/{}".format(download_link))
 	
 	destination = "{}subtitle.zip".format(download_directory)
@@ -108,8 +117,8 @@ def main():
 	unpack_subtitle(destination, "{}{}".format(download_directory, movie_directory)) # Unpacks the subtitle
 	remove(destination) # Deletes the subtitle .zip file
 	
-	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # 
-	if len(files) > 2: exit("Multiple movie files detected. Nothing renamed.")
+	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
+	if len(files) > 2: exit("Multiple movie files detected. Subtitle downloaded, but nothing renamed.")
 	rename_file(files) # Unifies movie and subtitle filenames
 	
 	exit("Done.")
