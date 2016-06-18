@@ -2,9 +2,26 @@
 Downloads subtitles from Subscene.
 
 TODO: Let user choose the subtitle?
-	  Make usable for tv shows
-	  ...
 """
+
+def is_tv_series(directory):
+	from re import search
+	
+	tv = search("\.S\d{2}E\d{2}\.", directory)
+	
+	if tv:
+		return search("S\d{2}", tv.group()).group()
+	
+	return False
+
+	
+def tv_seasons(key):
+
+	seasons = {"S01": "first", "S02": "second", "S03": "third", "S04": "fourth", "S05": "fifth",
+		"S06": "sixth", "S07": "seventh", "S08": "eighth", "S09": "ninth", "S10": "tenth"}
+	
+	return seasons[key]
+	
 
 def find_subtitles(soup, movie_directory):
 	from bs4 import BeautifulSoup
@@ -59,15 +76,18 @@ def main():
 	from os import remove
 	
 	download_directory = "C:\\Users\\Kaarel\\Downloads\\"
-	
 	movie_name = input("Enter movie name: ").replace(" ", "-")
-	movie_name = "10-cloverfield-lane" # For debugging
+	#movie_name = "10-cloverfield-lane" # For debugging
 	movie_wildcard_name = movie_name.replace("-", "*")
 
 	try:
 		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0]
 		movie_directory = movie_directory.split("\\")[-1]
 	except IndexError: exit("Movie directory not found.")
+	
+	is_tv = is_tv_series(movie_directory)
+	if is_tv:
+		movie_name += "-{}-season".format(tv_seasons(is_tv))
 	
 	r = requests.get("https://subscene.com/subtitles/{}/english".format(movie_name))
 	soup = BeautifulSoup(r.text, "html.parser")
@@ -83,12 +103,13 @@ def main():
 			
 	r = requests.get("https://subscene.com/{}".format(download_link))
 	
-	download_subtitle("{}subtitle.zip".format(download_directory), r) # Downloads subtitle
-	unpack_subtitle("{}subtitle.zip".format(download_directory), "{}{}".format(download_directory, movie_directory)) # Unpacks the subtitle
-	remove("{}subtitle.zip".format(download_directory)) # Deletes the subtitle .zip file
+	destination = "{}subtitle.zip".format(download_directory)
+	download_subtitle(destination, r) # Downloads subtitle
+	unpack_subtitle(destination, "{}{}".format(download_directory, movie_directory)) # Unpacks the subtitle
+	remove(destination) # Deletes the subtitle .zip file
 	
 	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # 
-	if len(files) > 2: exit("Multiple movie files detected.")
+	if len(files) > 2: exit("Multiple movie files detected. Nothing renamed.")
 	rename_file(files) # Unifies movie and subtitle filenames
 	
 	exit("Done.")
