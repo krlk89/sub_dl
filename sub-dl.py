@@ -5,6 +5,7 @@ Usage: python sub-dl.py <name>
 TODO: Prettify module imports
 	  Rename the subtitle file not the movie file.
 	  Handle multiple directories for same tv series.
+	  Do not overwrite when new subtitle file has identical name.
 """
 
 import requests
@@ -113,7 +114,9 @@ def main():
 	try:
 		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0].split("\\")[-1]
 		if movie_directory[-1] == "]": # Possible release tag
-			movie_directory = movie_directory.split("[")[0]
+			movie_directory, tag = movie_directory.split("[")
+			tag = "[{}".format(tag)
+		else: tag = ""
 	except IndexError: exit("Movie directory not found.")
 	
 	is_tv = is_tv_series(movie_directory)
@@ -131,10 +134,10 @@ def main():
 	
 	destination = "{}subtitle.zip".format(download_directory)
 	download_subtitle(destination, r) # Downloads subtitle
-	unpack_subtitle(destination, "{}{}".format(download_directory, movie_directory)) # Unpacks the subtitle
+	unpack_subtitle(destination, "{}{}{}".format(download_directory, movie_directory, tag)) # Unpacks the subtitle
 	remove(destination) # Deletes the subtitle .zip file
 	
-	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
+	files = glob("{}{}*\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
 	if len(files) > 2:
 		handle_multiple_subtitle_files(files) # Option to delete unnecessary file
 		
