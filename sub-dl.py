@@ -3,19 +3,25 @@ Downloads subtitles from Subscene.
 Usage: python sub-dl.py <name>
 
 TODO: Rename the subtitle file not the movie file.
-	  Handle multiple "movie" files in the destination directory.
 """
 
+import requests
+from bs4 import BeautifulSoup
+from sys import argv, exit
+from glob import glob
+from os import remove, rename
+from re import search
+from requests import get
+from zipfile import ZipFile	
+
 def is_tv_series(directory):
-	from re import search
-	
 	tv = search("\.S\d{2}E\d{2}\.", directory)
 	if tv:
 		return search("S\d{2}", tv.group()).group()
 	
 	return False
 
-	
+
 def tv_seasons(key):
 	seasons = {"S01": "first", "S02": "second", "S03": "third", "S04": "fourth", "S05": "fifth",
 		"S06": "sixth", "S07": "seventh", "S08": "eighth", "S09": "ninth", "S10": "tenth",
@@ -23,24 +29,23 @@ def tv_seasons(key):
 		"S16": "sixteenth", "S17": "seventeenth", "S18": "eighteenth", "S19": "nineteenth", "S20": "twentieth",}
 	
 	return seasons[key]
-	
+
 
 def find_subtitle_page(soup, movie_name):
 	for list in soup.find_all("li"):
 		if all(word in str(list).lower() for word in movie_name.split("-")):
 		
 			return list.find_all("a")[0].get("href")
+	
+	exit("Subtitle page not found.")
 
 
 def soup(link):
-	from requests import get
-	from bs4 import BeautifulSoup
-	
 	r = get(link)
 	
 	return BeautifulSoup(r.text, "html.parser")
 
-	
+
 def find_subtitles(soup, movie_directory):
 	subtitles = []
 	nr = 0
@@ -57,31 +62,39 @@ def find_subtitles(soup, movie_directory):
 
 	return subtitles
 
-	
+
 def find_download_link(soup):
 	for link in soup.find_all("a"):
 		if "download" in str(link):
 		
 			return link.get("href")
-	
-	
+
+
 def download_subtitle(local_filename, download_link):
 	with open(local_filename, 'wb') as f:
 		for chunk in download_link.iter_content(chunk_size = 2048): 
 			if chunk:
 				f.write(chunk)
 
-				
+			
 def unpack_subtitle(file, out_dir):
-	from zipfile import ZipFile
-	
 	with ZipFile(file, "r") as zip:
 		zip.extractall(out_dir)
 
-		
-def rename_file(files):
-	from os import rename
 
+def handle_multiple_subtitle_files(files):
+	for nr, file in enumerate(files, 1):
+		print(nr, file.split("\\")[-1])
+		
+	user_choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
+	if user_choice == "n":
+		exit("Subtitle downloaded. Nothing renamed or deleted.")
+	else:
+		remove(files[int(user_choice) -1]) # Deletes file
+		files.pop(int(user_choice) -1) # Removes file from the list
+
+
+def rename_file(files):
 	for nr, file in enumerate(files):
 		if nr == 0:
 			name = file[:-4]
@@ -91,13 +104,6 @@ def rename_file(files):
 
 
 def main():
-	import requests
-	from bs4 import BeautifulSoup
-	from sys import argv, exit
-	from random import choice
-	from glob import glob
-	from os import remove
-	
 	download_directory = "C:\\Users\\Kaarel\\Downloads\\"
 	movie_name = "-".join(argv[1:])
 	movie_wildcard_name = movie_name.replace("-", "*")
@@ -124,7 +130,9 @@ def main():
 	remove(destination) # Deletes the subtitle .zip file
 	
 	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
-	if len(files) > 2: exit("Multiple movie files detected. Subtitle downloaded, but nothing renamed.")
+	if len(files) > 2:
+		handle_multiple_subtitle_files(files)
+		
 	rename_file(files) # Unifies movie and subtitle filenames
 	
 	exit("Done.")
