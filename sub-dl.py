@@ -2,7 +2,9 @@
 Downloads subtitles from Subscene.
 Usage: python sub-dl.py <name>
 
-TODO: Rename the subtitle file not the movie file.
+TODO: Prettify module imports
+	  Rename the subtitle file not the movie file.
+	  Handle multiple directories for same tv series.
 """
 
 import requests
@@ -108,7 +110,10 @@ def main():
 	movie_name = "-".join(argv[1:])
 	movie_wildcard_name = movie_name.replace("-", "*")
 	
-	try: movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0].split("\\")[-1]
+	try:
+		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0].split("\\")[-1]
+		if movie_directory[-1] == "]": # Possible release tag
+			movie_directory = movie_directory.split("[")[0]
 	except IndexError: exit("Movie directory not found.")
 	
 	is_tv = is_tv_series(movie_directory)
@@ -131,7 +136,7 @@ def main():
 	
 	files = glob("{}{}\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
 	if len(files) > 2:
-		handle_multiple_subtitle_files(files)
+		handle_multiple_subtitle_files(files) # Option to delete unnecessary file
 		
 	rename_file(files) # Unifies movie and subtitle filenames
 	
