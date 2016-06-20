@@ -2,17 +2,15 @@
 Downloads subtitles from Subscene.
 Usage: python sub-dl.py <name>
 
-TODO: Prettify module imports
+TODO: Prettify module imports.
 	  Rename the subtitle file not the movie file.
-	  Handle multiple directories for same tv series.
-	  Do not overwrite when new subtitle file has identical name.
 """
 
 import requests
 from bs4 import BeautifulSoup
 from sys import argv, exit
 from glob import glob
-from os import remove, rename
+from os import remove, rename, path
 from re import search
 from requests import get
 from zipfile import ZipFile	
@@ -82,6 +80,9 @@ def download_subtitle(local_filename, download_link):
 			
 def unpack_subtitle(file, out_dir):
 	with ZipFile(file, "r") as zip:
+		if path.exists("{}\\{}".format(out_dir, zip.namelist()[0])):
+			print("Subtitle file overwritten.")
+			
 		zip.extractall(out_dir)
 
 
@@ -112,7 +113,15 @@ def main():
 	movie_wildcard_name = movie_name.replace("-", "*")
 	
 	try:
-		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))[0].split("\\")[-1]
+		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))
+		if len(movie_directory) > 1: # Multiple directories for the same tv series/movie
+			for nr, directory in enumerate(movie_directory, 1):
+				print(nr, directory.split("\\")[-1])
+			user_choice = int(input("Multiple directories detected. Which to choose? (i): ")) - 1
+			movie_directory = movie_directory[user_choice].split("\\")[-1]
+		else:
+			movie_directory = movie_directory[0].split("\\")[-1]
+			
 		if movie_directory[-1] == "]": # Possible release tag
 			movie_directory, tag = movie_directory.split("[")
 			tag = "[{}".format(tag)
@@ -138,6 +147,7 @@ def main():
 	remove(destination) # Deletes the subtitle .zip file
 	
 	files = glob("{}{}*\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
+	files.sort(key=path.getmtime)
 	if len(files) > 2:
 		handle_multiple_subtitle_files(files) # Option to delete unnecessary file
 		
