@@ -15,6 +15,27 @@ from re import search
 from requests import get
 from zipfile import ZipFile	
 
+def find_correct_directory(download_directory, movie_wildcard_name):
+	try:
+		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))
+		if len(movie_directory) > 1: # Multiple directories for the same tv series/movie
+			for nr, directory in enumerate(movie_directory, 1):
+				print(nr, directory.split("\\")[-1])
+			user_choice = int(input("Multiple directories detected. Which to choose? (i): ")) - 1
+			movie_directory = movie_directory[user_choice].split("\\")[-1]
+		else:
+			movie_directory = movie_directory[0].split("\\")[-1]
+			
+		if movie_directory[-1] == "]": # Possible release tag
+			movie_directory, tag = movie_directory.split("[")
+			tag = "[{}".format(tag)
+		else: tag = ""
+		
+		return (movie_directory, tag)
+		
+	except IndexError: exit("Movie directory not found.")
+
+
 def is_tv_series(directory):
 	tv = search("\.S\d{2}E\d{2}\.", directory)
 	if tv:
@@ -112,21 +133,7 @@ def main():
 	movie_name = "-".join(argv[1:])
 	movie_wildcard_name = movie_name.replace("-", "*")
 	
-	try:
-		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))
-		if len(movie_directory) > 1: # Multiple directories for the same tv series/movie
-			for nr, directory in enumerate(movie_directory, 1):
-				print(nr, directory.split("\\")[-1])
-			user_choice = int(input("Multiple directories detected. Which to choose? (i): ")) - 1
-			movie_directory = movie_directory[user_choice].split("\\")[-1]
-		else:
-			movie_directory = movie_directory[0].split("\\")[-1]
-			
-		if movie_directory[-1] == "]": # Possible release tag
-			movie_directory, tag = movie_directory.split("[")
-			tag = "[{}".format(tag)
-		else: tag = ""
-	except IndexError: exit("Movie directory not found.")
+	movie_directory, tag = find_correct_directory(download_directory, movie_wildcard_name)
 	
 	is_tv = is_tv_series(movie_directory)
 	if is_tv:
