@@ -3,10 +3,8 @@ Downloads subtitles from Subscene.
 Usage: python sub-dl.py <name>
 
 TODO: Prettify module imports.
-	  Rename the subtitle file not the movie file.
 """
 
-import requests
 from bs4 import BeautifulSoup
 from sys import argv, exit
 from glob import glob
@@ -74,7 +72,7 @@ def find_subtitles(soup, movie_directory):
 	
 	for table_row in soup.find_all("tr"):
 		subtitle_info = str(table_row).lower()
-		if movie_directory.lower() in subtitle_info and "positive" in subtitle_info:
+		if movie_directory.lower() in subtitle_info and ("positive" in subtitle_info or "neutral" in subtitle_info):
 			nr += 1
 			subtitles.append(table_row.find_all("a")[0].get("href")) # Subtitle link
 			if "<td class=\"a41\">" in subtitle_info:
@@ -109,7 +107,10 @@ def unpack_subtitle(file, out_dir):
 
 def handle_multiple_subtitle_files(files):
 	for nr, file in enumerate(files, 1):
-		print(nr, file.split("\\")[-1])
+		if file == files[-1]:
+			print("{} {} - NEW".format(nr, file.split("\\")[-1]))
+		else:
+			print(nr, file.split("\\")[-1])
 		
 	user_choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
 	if user_choice == "n":
@@ -146,7 +147,7 @@ def main():
 	sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
 	
 	download_link = find_download_link(soup("https://subscene.com{}".format(sub))) # Find download link from the subtitle page
-	r = requests.get("https://subscene.com/{}".format(download_link))
+	r = get("https://subscene.com/{}".format(download_link))
 	
 	destination = "{}subtitle.zip".format(download_directory)
 	download_subtitle(destination, r) # Downloads subtitle
@@ -154,7 +155,7 @@ def main():
 	remove(destination) # Deletes the subtitle .zip file
 	
 	files = glob("{}{}*\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
-	files.sort(key=path.getmtime)
+	files.sort(key = path.getmtime)
 	if len(files) > 2:
 		handle_multiple_subtitle_files(files) # Option to delete unnecessary file
 		
