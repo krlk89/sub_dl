@@ -2,20 +2,19 @@
 Downloads subtitles from Subscene.
 Usage: python sub-dl.py <name>
 
-TODO: Prettify module imports.
 """
 
 from bs4 import BeautifulSoup
-from sys import argv, exit
-from glob import glob
-from os import remove, rename, path
-from re import search
-from requests import get
-from zipfile import ZipFile	
+import sys
+import glob
+import os
+import re
+import requests
+import zipfile	
 
 def find_correct_directory(download_directory, movie_wildcard_name):
 	try:
-		movie_directory = glob("{}{}*".format(download_directory, movie_wildcard_name))
+		movie_directory = glob.glob("{}{}*".format(download_directory, movie_wildcard_name))
 		if len(movie_directory) > 1: # Multiple directories for the same tv series/movie
 			for nr, directory in enumerate(movie_directory, 1):
 				print(nr, directory.split("\\")[-1])
@@ -31,13 +30,13 @@ def find_correct_directory(download_directory, movie_wildcard_name):
 		
 		return (movie_directory, tag)
 		
-	except IndexError: exit("Movie directory not found.")
+	except IndexError: sys.exit("Movie directory not found.")
 
 
 def is_tv_series(directory):
-	tv = search("\.S\d{2}E\d{2}\.", directory)
+	tv = re.search("\.S\d{2}E\d{2}\.", directory)
 	if tv:
-		return search("S\d{2}", tv.group()).group()
+		return re.search("S\d{2}", tv.group()).group()
 	
 	return False
 
@@ -57,11 +56,11 @@ def find_subtitle_page(soup, movie_name):
 		
 			return list.find_all("a")[0].get("href")
 	
-	exit("Subtitle page not found.")
+	sys.exit("Subtitle page not found.")
 
 
 def soup(link):
-	r = get(link)
+	r = requests.get(link)
 	
 	return BeautifulSoup(r.text, "html.parser")
 
@@ -98,8 +97,8 @@ def download_subtitle(local_filename, download_link):
 
 			
 def unpack_subtitle(file, out_dir):
-	with ZipFile(file, "r") as zip:
-		if path.exists("{}\\{}".format(out_dir, zip.namelist()[0])):
+	with zipfile.ZipFile(file, "r") as zip:
+		if os.path.exists("{}\\{}".format(out_dir, zip.namelist()[0])):
 			print("Subtitle file overwritten.")
 			
 		zip.extractall(out_dir)
@@ -114,9 +113,9 @@ def handle_multiple_subtitle_files(files):
 		
 	user_choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
 	if user_choice == "n":
-		exit("Subtitle downloaded. Nothing renamed or deleted.")
+		sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
 	else:
-		remove(files[int(user_choice) -1]) # Deletes file
+		os.remove(files[int(user_choice) -1]) # Deletes file
 		files.pop(int(user_choice) -1) # Removes file from the list
 
 
@@ -126,12 +125,12 @@ def rename_file(files):
 			name = file[:-4]
 		else:
 			extension = file[-4:]
-			rename(file, name + extension)
+			os.rename(file, name + extension)
 
 
 def main():
 	download_directory = "C:\\Users\\Kaarel\\Downloads\\"
-	movie_name = "-".join(argv[1:])
+	movie_name = "-".join(sys.argv[1:])
 	movie_wildcard_name = movie_name.replace("-", "*")
 	
 	movie_directory, tag = find_correct_directory(download_directory, movie_wildcard_name)
@@ -143,24 +142,24 @@ def main():
 	movie_name = find_subtitle_page(soup("https://subscene.com/subtitles/title?q={}&l=".format(movie_name.replace("-", "+"))), movie_name) # Find correct subtitle page
 	
 	subtitles = find_subtitles(soup("https://subscene.com{}/english".format(movie_name)), movie_directory) # Find all suitable subtitles
-	if len(subtitles) == 0: exit("No subtitles found.")
+	if len(subtitles) == 0: sys.exit("No subtitles found.")
 	sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
 	
 	download_link = find_download_link(soup("https://subscene.com{}".format(sub))) # Find download link from the subtitle page
-	r = get("https://subscene.com/{}".format(download_link))
+	r = requests.get("https://subscene.com/{}".format(download_link))
 	
 	destination = "{}subtitle.zip".format(download_directory)
 	download_subtitle(destination, r) # Downloads subtitle
 	unpack_subtitle(destination, "{}{}{}".format(download_directory, movie_directory, tag)) # Unpacks the subtitle
-	remove(destination) # Deletes the subtitle .zip file
+	os.remove(destination) # Deletes the subtitle .zip file
 	
-	files = glob("{}{}*\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
-	files.sort(key = path.getmtime)
+	files = glob.glob("{}{}*\\{}*".format(download_directory, movie_directory, movie_wildcard_name)) # Find all the files in movie directory
+	files.sort(key = os.path.getmtime)
 	if len(files) > 2:
 		handle_multiple_subtitle_files(files) # Option to delete unnecessary file
 		
 	rename_file(files) # Unifies movie and subtitle filenames
 	
-	exit("Done.")
+	sys.exit("Done.")
 
 main()
