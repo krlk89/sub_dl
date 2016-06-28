@@ -1,10 +1,8 @@
 """
 Downloads subtitles from Subscene.
-Usage: python sub-dl.py <name>
+Usage: python sub-dl.py
 
-TODO:
-Remove tag if necessary
-Cleanups
+TODO: Fix renaming.
 """
 
 from bs4 import BeautifulSoup
@@ -44,16 +42,13 @@ def find_download_link(sub):
     soup_link = soup("https://subscene.com{}".format(sub))
     
     for link in soup_link.find_all("a"):
-        if "download" in str(link):
-        
-            return link.get("href")
+        if "download" in str(link): return link.get("href")
 
 
 def download_subtitle(local_filename, download_link):
     with open(local_filename, 'wb') as f:
         for chunk in download_link.iter_content(chunk_size = 2048): 
-            if chunk:
-                f.write(chunk)
+            if chunk: f.write(chunk)
 
             
 def unpack_subtitle(file, out_dir):
@@ -93,7 +88,6 @@ def main():
     dirs = [dir for dir in os.listdir(download_directory) if os.path.isdir(download_directory + dir)] # All directories in download directory
     for nr, dir in enumerate(dirs, 1):
         print(nr, dir)
-    tag = ""
     
     release_name = dirs[int(input("Choose: ")) - 1]
     if release_name[-1] == "]": # Possible release tag
@@ -114,10 +108,8 @@ def main():
     
     files = glob.glob("{}{}{}*\\*".format(download_directory, release_name, tag)) # Find all the files in movie directory
     files.sort(key = os.path.getmtime)
-    if len(files) > 2:
-        handle_multiple_subtitle_files(files) # Option to delete unnecessary file
-    if not len(files) > 2:
-        rename_file(files) # Unifies movie and subtitle filenames
+    if len(files) > 2: handle_multiple_subtitle_files(files) # Option to delete unnecessary file
+    if len(files) <= 2: rename_file(files) # Unifies movie and subtitle filenames
     
     sys.exit("Done.")
 
