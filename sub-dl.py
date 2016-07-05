@@ -1,6 +1,9 @@
 """
-Downloads subtitles from Subscene.
-Usage: python sub-dl.py
+Downloads subtitles from Subscene (https://subscene.com).
+
+Usage: python sub-dl.py [-w]
+-w - Launches VLC with the media file.
+
 
 """
 
@@ -11,6 +14,7 @@ import os
 import re
 import requests
 import zipfile
+import watch
 
 def soup(link):
     r = requests.get(link)
@@ -59,54 +63,62 @@ def handle_multiple_subtitle_files(files):
     for nr, file in enumerate(files, 1):
         if file == files[-1]:
             file = file.split("\\")[-1]
-            print("{} {} - NEW".format(nr, file))
+            print("{}  {} - NEW".format(nr, file))
         else:
-            print("{} {}".format(nr, file))
+            print("{}  {}".format(nr, file))
 
-    user_choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
-    if user_choice == "n":
+    choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
+    if choice == "n":
         sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
     else:
-        os.remove(files[int(user_choice) -1]) # Deletes file
-        files.pop(int(user_choice) -1) # Removes file from the list
+        os.remove(files[int(choice) -1]) # Deletes file
+        files.pop(int(choice) -1) # Removes file from the list
 
 
-def rename_file(files, name):
-    for file in files:
-        directory = "\\".join(file.split("\\")[0:-1])
-        extension = file[-4:]
-        os.rename(file, "{}\\{}{}".format(directory, name, extension))
+def rename_files(files):
+    for nr, file in enumerate(files):
+        if nr == 0:
+            name = file[:-4]
+        else:
+            extension = file[-4:]
+            os.rename(file, "{}{}".format(name, extension))
 
 
 def main():
     download_directory = "C:\\Users\\Kaarel\\Downloads\\Media\\"
     dirs = [dir for dir in os.listdir(download_directory) if os.path.isdir(download_directory + dir)] # All directories in download directory
     for nr, dir in enumerate(dirs, 1):
-        print("{} {}".format(nr, dir))
+        print("{}  {}".format(nr, dir))
 
-    release_name = dirs[int(input("Choose: ")) - 1]
+    choice = int(input("\nChoose: ")) - 1
+    release_name = dirs[choice]
     if release_name[-1] == "]": # Possible release tag
             release_name, tag = release_name.split("[")
             tag = "[{}".format(tag)
-    else: tag = ""
-    
+    else:
+        tag = ""
+
     subtitles = find_subtitles(release_name) # Find all suitable subtitles
-    if len(subtitles) == 0: sys.exit("No subtitles found.")
+    if len(subtitles) == 0:
+        sys.exit("No subtitles found.")
     sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
 
-    r = requests.get("https://subscene.com/{}".format(find_download_link(sub)))
-
+    dl_link = find_download_link(sub)
+    r = requests.get("https://subscene.com/{}".format(dl_link))
     destination = "{}subtitle.zip".format(download_directory)
-    download_subtitle(destination, r) # Downloads subtitle
-    unpack_subtitle(destination, "{}{}{}".format(download_directory, release_name, tag)) # Unpacks the subtitle
+    download_subtitle(destination, r) # Downloads subtitle .zip file
+    unpack_subtitle(destination, "{}{}{}".format(download_directory, release_name, tag)) # Unpacks the .zip file
     os.remove(destination) # Deletes the subtitle .zip file
-    
-    files = glob.glob("{}{}*{}*\\{}*".format(download_directory, release_name, tag, release_name)) # Find all relevant files in media directory
-    
+
+    files = glob.glob("{}{}*\\{}*".format(download_directory, release_name, release_name)) # Find all relevant files in media directory
+    files.sort(key = os.path.getmtime)
     if len(files) > 2:
         handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
-    rename_file(files, release_name) # Unifies movie and subtitle filenames
-    
+    rename_files(files) # Unifies movie and subtitle filenames
+
+    if len(sys.argv) > 1 and sys.argv[1] == "-w":
+        watch.launch_vlc(files[0])
+
     sys.exit("Done.")
 
 main()
