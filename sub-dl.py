@@ -3,8 +3,6 @@ Downloads subtitles from Subscene (https://subscene.com).
 
 Usage: python sub-dl.py [-w]
 -w - Launches VLC with the media file.
-
-
 """
 
 from bs4 import BeautifulSoup
@@ -22,13 +20,13 @@ def soup(link):
 
 
 def find_subtitles(media_name):
-    soup_link = soup("https://subscene.com/subtitles/release?q={}/english".format(media_name))
+    soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
     subtitles = []
     nr = 0
 
     for table_row in soup_link.find_all("tr"):
         subtitle_info = str(table_row)
-        if media_name in subtitle_info: # Release name
+        if media_name in subtitle_info and "English" in subtitle_info: # Release name and language
             nr += 1
             subtitles.append(table_row.find_all("a")[0].get("href")) # Subtitle link
             if "<td class=\"a41\">" in subtitle_info:
@@ -61,11 +59,11 @@ def unpack_subtitle(file, out_dir):
 
 def handle_multiple_subtitle_files(files):
     for nr, file in enumerate(files, 1):
+        filename = file.split("\\")[-1]
         if file == files[-1]:
-            file = file.split("\\")[-1]
-            print("{}  {} - NEW".format(nr, file))
+            print("{}  {} - NEW".format(nr, filename))
         else:
-            print("{}  {}".format(nr, file))
+            print("{}  {}".format(nr, filename))
 
     choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
     if choice == "n":
