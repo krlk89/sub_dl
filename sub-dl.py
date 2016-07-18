@@ -66,8 +66,8 @@ def handle_multiple_subtitle_files(files):
     choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
     if choice == "n":
         sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
-    else: # FIX
-        os.remove(files[int(choice) -1])
+    else:
+        pathlib.Path(files[int(choice) -1]).unlink()
         files.pop(int(choice) -1)
 
 
