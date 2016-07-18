@@ -6,9 +6,9 @@ Usage: python sub-dl.py [-w]
 """
 
 from bs4 import BeautifulSoup
-import pathlib
-import sys
+from pathlib import Path
 import requests
+import sys
 import zipfile
 import watch
 
@@ -50,7 +50,7 @@ def download_subtitle(local_filename, download_link):
 
 def unpack_subtitle(file, out_dir):
     with zipfile.ZipFile(file, "r") as zip:
-        if pathlib.Path("{}\\{}".format(out_dir, zip.namelist()[0])).exists():
+        if Path("{}\\{}".format(out_dir, zip.namelist()[0])).exists():
             print("Subtitle file overwritten.")
         zip.extractall(str(out_dir))
 
@@ -67,7 +67,7 @@ def handle_multiple_subtitle_files(files):
     if choice == "n":
         sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
     else:
-        pathlib.Path(files[int(choice) -1]).unlink()
+        Path(files[int(choice) -1]).unlink()
         files.pop(int(choice) -1)
 
 
@@ -77,12 +77,12 @@ def rename_files(files):
             dir, name = file.parents[0], file.name[:-4]
         else:
             extension = file.name[-4:]
-            pathlib.Path(file).rename("{}\\{}{}".format(dir, name, extension))
+            Path(file).rename("{}\\{}{}".format(dir, name, extension))
 
 
 def main():
-    media_dir = pathlib.Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
-    dirs = [x for x in media_dir.iterdir() if x.is_dir()] # All directories in download directory
+    media_dir = Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
+    dirs = [x for x in media_dir.iterdir() if x.is_dir()] # All subdirs in media dir
     for nr, dir in enumerate(dirs, 1):
         print("{}  {}".format(nr, dir.name))
 
@@ -102,9 +102,9 @@ def main():
     sub_file = "{}\\subtitle.zip".format(download_directory)
     download_subtitle(sub_file, r)
     unpack_subtitle(sub_file, download_directory)
-    pathlib.Path(sub_file).unlink() # Deletes subtitle.zip
+    Path(sub_file).unlink() # Deletes subtitle.zip
 
-    files = list(download_directory.glob("{}*".format(release_name))) # Find all relevant files in download directory
+    files = list(download_directory.glob("{}*".format(release_name))) # Find all relevant files in download dir
     if len(files) > 2:
         handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
     rename_files(files) # Unifies movie and subtitle filenames
