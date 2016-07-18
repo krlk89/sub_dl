@@ -6,10 +6,8 @@ Usage: python sub-dl.py [-w]
 """
 
 from bs4 import BeautifulSoup
+import pathlib
 import sys
-import glob
-import os
-import re
 import requests
 import zipfile
 import watch
@@ -52,14 +50,14 @@ def download_subtitle(local_filename, download_link):
 
 def unpack_subtitle(file, out_dir):
     with zipfile.ZipFile(file, "r") as zip:
-        if os.path.exists("{}\\{}".format(out_dir, zip.namelist()[0])):
+        if pathlib.Path("{}\\{}".format(out_dir, zip.namelist()[0])).exists():
             print("Subtitle file overwritten.")
-        zip.extractall(out_dir)
+        zip.extractall(str(out_dir))
 
 
 def handle_multiple_subtitle_files(files):
     for nr, file in enumerate(files, 1):
-        filename = file.split("\\")[-1]
+        filename = file.name
         if file == files[-1]:
             print("{}  {} - NEW".format(nr, filename))
         else:
@@ -68,48 +66,45 @@ def handle_multiple_subtitle_files(files):
     choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
     if choice == "n":
         sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
-    else:
-        os.remove(files[int(choice) -1]) # Deletes file
-        files.pop(int(choice) -1) # Removes file from the list
+    else: # FIX
+        os.remove(files[int(choice) -1])
+        files.pop(int(choice) -1)
 
 
 def rename_files(files):
     for nr, file in enumerate(files):
         if nr == 0:
-            name = file[:-4]
+            dir, name = file.parents[0], file.name[:-4]
         else:
-            extension = file[-4:]
-            os.rename(file, "{}{}".format(name, extension))
+            extension = file.name[-4:]
+            pathlib.Path(file).rename("{}\\{}{}".format(dir, name, extension))
 
 
 def main():
-    download_directory = "C:\\Users\\Kaarel\\Downloads\\Media\\"
-    dirs = [dir for dir in os.listdir(download_directory) if os.path.isdir(download_directory + dir)] # All directories in download directory
+    media_dir = pathlib.Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
+    dirs = [x for x in media_dir.iterdir() if x.is_dir()] # All directories in download directory
     for nr, dir in enumerate(dirs, 1):
-        print("{}  {}".format(nr, dir))
+        print("{}  {}".format(nr, dir.name))
 
     choice = int(input("\nChoose: ")) - 1
-    release_name = dirs[choice]
-    if release_name[-1] == "]": # Possible release tag
-            release_name, tag = release_name.split("[")
-            tag = "[{}".format(tag)
-    else:
-        tag = ""
+    download_directory, release_name = dirs[choice], dirs[choice].name
+    
+    if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
+        release_name = release_name.split("[")[0]
 
-    subtitles = find_subtitles(release_name) # Find all suitable subtitles
+    subtitles = find_subtitles(release_name) # List of all suitable subtitles
     if len(subtitles) == 0:
         sys.exit("No subtitles found.")
     sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
 
     dl_link = find_download_link(sub)
     r = requests.get("https://subscene.com/{}".format(dl_link))
-    destination = "{}subtitle.zip".format(download_directory)
-    download_subtitle(destination, r) # Downloads subtitle .zip file
-    unpack_subtitle(destination, "{}{}{}".format(download_directory, release_name, tag)) # Unpacks the .zip file
-    os.remove(destination) # Deletes the subtitle .zip file
+    sub_file = "{}\\subtitle.zip".format(download_directory)
+    download_subtitle(sub_file, r)
+    unpack_subtitle(sub_file, download_directory)
+    pathlib.Path(sub_file).unlink() # Deletes subtitle.zip
 
-    files = glob.glob("{}{}*\\{}*".format(download_directory, release_name, release_name)) # Find all relevant files in media directory
-    files.sort(key = os.path.getmtime)
+    files = list(download_directory.glob("{}*".format(release_name))) # Find all relevant files in download directory
     if len(files) > 2:
         handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
     rename_files(files) # Unifies movie and subtitle filenames
