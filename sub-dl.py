@@ -4,8 +4,7 @@ Downloads subtitles from Subscene (https://subscene.com).
 Usage: python sub-dl.py [-w]
 -w - Launches VLC with the media file.
 
-TODO:
-Show alternatives when subtitle for the exact release is not found.
+TODO: Show alternatives when subtitle for the exact release is not found.
 """
 
 from bs4 import BeautifulSoup
@@ -59,11 +58,13 @@ def download_subtitle(local_filename, download_link):
             if chunk: f.write(chunk)
 
 
-def unpack_subtitle(file, out_dir):
+def unpack_subtitle(file, out_dir, release_name):
     with zipfile.ZipFile(file, "r") as zip:
-        if Path("{}\\{}".format(out_dir, zip.namelist()[0])).exists():
+        sub_file = zip.namelist()[0]
+        if Path("{}\\{}".format(out_dir, sub_file)).exists():
             print("Subtitle file overwritten.")
         zip.extractall(str(out_dir))
+        Path("{}\\{}".format(out_dir, sub_file)).rename("{}\\{}.srt".format(out_dir, release_name))
 
 
 def handle_multiple_subtitle_files(files):
@@ -92,8 +93,11 @@ def rename_files(files):
 
 
 def main():
-    media_dir = Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
-    #media_dir = Path("F:\\")
+    if Path("F:\\").is_dir():
+        media_dir = Path("F:\\")
+    else:
+        media_dir = Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
+        
     print("Checking media directory: {}\n".format(media_dir))
     dirs = [x for x in media_dir.iterdir()] # All files and subdirs in media dir
     if len(dirs) == 0:
@@ -127,7 +131,7 @@ def main():
         r = requests.get("https://subscene.com/{}".format(dl_link))
         sub_file = "{}\\subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
-        unpack_subtitle(sub_file, download_directory)
+        unpack_subtitle(sub_file, download_directory, release_name)
         Path(sub_file).unlink() # Deletes subtitle.zip
 
         files = list(download_directory.glob("{}*".format(release_name))) # All relevant files in download dir
