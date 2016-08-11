@@ -3,6 +3,9 @@ Downloads subtitles from Subscene (https://subscene.com).
 
 Usage: python sub-dl.py [-w]
 -w - Launches VLC with the media file.
+
+TODO:
+Show alternatives when subtitle for the exact release is not found.
 """
 
 from bs4 import BeautifulSoup
@@ -12,6 +15,14 @@ import sys
 import zipfile
 import watch
 
+def choose_release(choice):
+    if "-" in choice:
+        start, end = choice.split("-")
+    else:
+        start, end = choice, choice
+    return (int(start) - 1, int(end))
+
+        
 def soup(link):
     r = requests.get(link)
     return BeautifulSoup(r.text, "html.parser")
@@ -82,35 +93,50 @@ def rename_files(files):
 
 def main():
     media_dir = Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
-    dirs = [x for x in media_dir.iterdir() if x.is_dir()] # All subdirs in media dir
+    #media_dir = Path("F:\\")
+    print("Checking media directory: {}\n".format(media_dir))
+    dirs = [x for x in media_dir.iterdir()] # All files and subdirs in media dir
+    if len(dirs) == 0:
+        exit("No releases in media directory.")
+    dirs.sort()
     for nr, dir in enumerate(dirs, 1):
         print("{}  {}".format(nr, dir.name))
 
-    choice = int(input("\nChoose: ")) - 1
-    download_directory, release_name = dirs[choice], dirs[choice].name
+    choice = input("\nChoose a release: ")
+    start, end = choose_release(choice)
     
-    if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
-        release_name = release_name.split("[")[0]
+    for release in range(start, end):
+        print("\nSearching subtitles for {}".format(dirs[release].name))
+        download_directory, release_name = dirs[release], dirs[release].name
+        if not download_directory.is_dir():
+            download_directory = media_dir
+            release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
+        
+        if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
+            release_name = release_name.split("[")[0]
 
-    subtitles = find_subtitles(release_name) # List of all suitable subtitles
-    if len(subtitles) == 0:
-        sys.exit("No subtitles found.")
-    sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
+        subtitles = find_subtitles(release_name) # List of all suitable subtitles
+        if len(subtitles) == 0:
+            print("No subtitles for {} found. Showing alternative releases...".format(dirs[release].name))
+            # TODO
+            sys.exit()
+            
+        sub = subtitles[int(input("\nChoose a subtitle: ")) -1] # Choose one from suitable subtitles
 
-    dl_link = find_download_link(sub)
-    r = requests.get("https://subscene.com/{}".format(dl_link))
-    sub_file = "{}\\subtitle.zip".format(download_directory)
-    download_subtitle(sub_file, r)
-    unpack_subtitle(sub_file, download_directory)
-    Path(sub_file).unlink() # Deletes subtitle.zip
+        dl_link = find_download_link(sub)
+        r = requests.get("https://subscene.com/{}".format(dl_link))
+        sub_file = "{}\\subtitle.zip".format(download_directory)
+        download_subtitle(sub_file, r)
+        unpack_subtitle(sub_file, download_directory)
+        Path(sub_file).unlink() # Deletes subtitle.zip
 
-    files = list(download_directory.glob("{}*".format(release_name))) # Find all relevant files in download dir
-    if len(files) > 2:
-        handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
-    rename_files(files) # Unifies movie and subtitle filenames
+        files = list(download_directory.glob("{}*".format(release_name))) # All relevant files in download dir
+        if len(files) > 2:
+            handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
+        rename_files(files) # Unifies movie and subtitle filenames
 
-    if len(sys.argv) > 1 and sys.argv[1] == "-w":
-        watch.launch_vlc(files[0])
+        if len(sys.argv) > 1 and sys.argv[1] == "-w":
+            watch.launch_vlc(files[0])
 
     sys.exit("Done.")
 
