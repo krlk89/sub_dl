@@ -27,6 +27,11 @@ def soup(link):
     return BeautifulSoup(r.text, "html.parser")
 
 
+def check_release_tag(release_name):
+    if str(release_name)[-1] == "]": # Possible release tag (e.g. [ettv])
+        return str(release_name).split("[")[0]
+    return str(release_name)
+
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
     subtitles = []
@@ -85,16 +90,13 @@ def main():
     start, end = choose_release(choice)
     
     for release in range(start, end):
-        download_directory, release_name, search_name = dirs[release], dirs[release].name, dirs[release].name
-        if str(release_name)[-1] == "]":
-            search_name = str(release_name).split("[")[0]
+        download_directory, release_name = dirs[release], dirs[release].name
+        search_name = check_release_tag(release_name)
         
         if not download_directory.is_dir():
             download_directory = media_dir
             release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
-            search_name = release_name
-            if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
-                search_name = release_name.split("[")[0]
+            search_name check_release_tag(release_name)
         
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # List of all suitable subtitles
