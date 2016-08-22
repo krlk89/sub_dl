@@ -67,31 +67,6 @@ def unpack_subtitle(file, out_dir, release_name):
         Path("{}\\{}".format(out_dir, sub_file)).rename("{}\\{}.srt".format(out_dir, release_name))
 
 
-def handle_multiple_subtitle_files(files):
-    for nr, file in enumerate(files, 1):
-        filename = file.name
-        if file == files[-1]:
-            print("{}  {} - NEW".format(nr, filename))
-        else:
-            print("{}  {}".format(nr, filename))
-
-    choice = input("Multiple subtitle files detected. Do you wish to delete one? (i\\n): ")
-    if choice == "n":
-        sys.exit("Subtitle downloaded. Nothing renamed or deleted.")
-    else:
-        Path(files[int(choice) -1]).unlink()
-        files.pop(int(choice) -1)
-
-
-def rename_files(files):
-    for nr, file in enumerate(files):
-        if nr == 0:
-            dir, name = file.parents[0], file.name[:-4]
-        else:
-            extension = file.name[-4:]
-            Path(file).rename("{}\\{}{}".format(dir, name, extension))
-
-
 def main():
     if Path("F:\\").is_dir():
         media_dir = Path("F:\\")
@@ -101,7 +76,7 @@ def main():
     print("Checking media directory: {}\n".format(media_dir))
     dirs = [x for x in media_dir.iterdir()] # All files and subdirs in media dir
     if len(dirs) == 0:
-        exit("No releases in media directory.")
+        sys.exit("No releases in media directory.")
     dirs.sort()
     for nr, dir in enumerate(dirs, 1):
         print("{}  {}".format(nr, dir.name))
@@ -110,20 +85,21 @@ def main():
     start, end = choose_release(choice)
     
     for release in range(start, end):
-        print("\nSearching subtitles for {}".format(dirs[release].name))
-        download_directory, release_name = dirs[release], dirs[release].name
+        download_directory, release_name, search_name = dirs[release], dirs[release].name, dirs[release].name
+        if str(release_name)[-1] == "]":
+            search_name = str(release_name).split("[")[0]
+        
         if not download_directory.is_dir():
             download_directory = media_dir
             release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
+            search_name = release_name
+            if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
+                search_name = release_name.split("[")[0]
         
-        if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
-            release_name = release_name.split("[")[0]
-
-        subtitles = find_subtitles(release_name) # List of all suitable subtitles
+        print("\nSearching subtitles for {}".format(search_name))
+        subtitles = find_subtitles(search_name) # List of all suitable subtitles
         if len(subtitles) == 0:
-            print("No subtitles for {} found. Showing alternative releases...".format(dirs[release].name))
-            # TODO
-            sys.exit()
+            sys.exit("No subtitles for {} found.".format(search_name))
             
         sub = subtitles[int(input("\nChoose a subtitle: ")) -1] # Choose one from suitable subtitles
 
@@ -133,11 +109,6 @@ def main():
         download_subtitle(sub_file, r)
         unpack_subtitle(sub_file, download_directory, release_name)
         Path(sub_file).unlink() # Deletes subtitle.zip
-
-        files = list(download_directory.glob("{}*".format(release_name))) # All relevant files in download dir
-        if len(files) > 2:
-            handle_multiple_subtitle_files(files) # Option to delete unnecessary (subtitle) file
-        rename_files(files) # Unifies movie and subtitle filenames
 
         if len(sys.argv) > 1 and sys.argv[1] == "-w":
             watch.launch_vlc(files[0])
