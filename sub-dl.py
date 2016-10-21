@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
+
 """
 Downloads subtitles from Subscene (https://subscene.com).
 
-Usage: python sub-dl.py [-w]
--w - Launches VLC with the media file.
-
-TODO: Show alternatives when subtitle for the exact release is not found.
+Usage:
+    ./sub-dl.py [-w]
+    -w - Launches VLC with the media file.
 """
 
 from bs4 import BeautifulSoup
@@ -14,12 +15,12 @@ import sys
 import zipfile
 import watch
 
-def choose_release(choice):
+def choose_release(dirs, choice):
     if "-" in choice:
         start, end = choice.split("-")
     else:
         start, end = choice, choice
-    return (int(start) - 1, int(end))
+    return dirs[int(start) - 1: int(end)]
 
 def soup(link):
     r = requests.get(link)
@@ -43,7 +44,7 @@ def find_subtitles(media_name):
             if "<td class=\"a41\">" in subtitle_info:
                 print("{} (Hearing impaired)".format(nr))
             else:
-                print("{}".format(nr))      
+                print("{}".format(nr))
     if len(subtitles) == 0:
             sys.exit("No subtitles for {} found.".format(media_name))
     return subtitles
@@ -57,40 +58,40 @@ def find_download_link(sub):
 
 def download_subtitle(local_filename, download_link):
     with open(local_filename, 'wb') as f:
-        for chunk in download_link.iter_content(chunk_size = 2048):
+        for chunk in download_link.iter_content(chunk_size = 1024):
             if chunk: f.write(chunk)
 
 def unpack_subtitle(file, out_dir, release_name):
     with zipfile.ZipFile(file, "r") as zip:
         sub_file = zip.namelist()[0]
-        if Path("{}\\{}".format(out_dir, sub_file)).exists():
+        if Path("{}/{}".format(out_dir, sub_file)).exists():
             print("Subtitle file overwritten.")
         zip.extractall(str(out_dir))
-        Path("{}\\{}".format(out_dir, sub_file)).rename("{}\\{}.srt".format(out_dir, release_name))
+        Path("{}/{}".format(out_dir, sub_file)).rename("{}/{}.srt".format(out_dir, release_name))
 
 def main():
-    media_dir = Path("C:\\Users\\Kaarel\\Downloads\\Media\\")
+    media_dir = Path("/home/kaarel/Downloads/")
     if Path("F:\\").is_dir():
         media_dir = Path("F:\\")
         
     print("Checking media directory: {}\n".format(media_dir))
-    dirs = [x for x in media_dir.iterdir()] # All files and subdirs in media dir
+    dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
     if len(dirs) == 0:
-        sys.exit("Nothing in media directory.")
+        sys.exit("No releases in media directory.")
     dirs.sort()
     for nr, dir in enumerate(dirs, 1):
         print("{}  {}".format(nr, dir.name))
 
     choice = input("\nChoose a release: ")
-    start, end = choose_release(choice)
+    dirs = choose_release(dirs, choice)
     
-    for release in range(start, end):
-        download_directory, release_name = dirs[release], dirs[release].name
-        search_name = check_release_tag(release_name)
+    for release in dirs:
+        download_directory = release
+        search_name = check_release_tag(release.name)
         
         if not download_directory.is_dir():
             download_directory = media_dir
-            release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
+            release_name = ".".join(release.name.split(".")[0:-1]) # Removes extension
             search_name = check_release_tag(release_name)
         
         print("\nSearching subtitles for {}".format(search_name))
@@ -99,13 +100,13 @@ def main():
 
         dl_link = find_download_link(sub)
         r = requests.get("https://subscene.com/{}".format(dl_link))
-        sub_file = "{}\\subtitle.zip".format(download_directory)
+        sub_file = "{}/subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
         unpack_subtitle(sub_file, download_directory, release_name)
         Path(sub_file).unlink() # Deletes subtitle.zip
 
         if len(sys.argv) > 1 and sys.argv[1] == "-w":
-            watch.launch_vlc(files[0])
+            watch.launch_vlc(str(release))
 
     sys.exit("Done.")
 
