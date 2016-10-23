@@ -42,9 +42,9 @@ def find_subtitles(media_name):
             nr += 1
             subtitles.append(table_row.find_all("a")[0].get("href")) # Subtitle link
             if "<td class=\"a41\">" in subtitle_info:
-                print("{} (Hearing impaired)".format(nr))
+                print(" {} (Hearing impaired)".format(nr))
             else:
-                print("{}".format(nr))
+                print(" {}".format(nr))
     if len(subtitles) == 0:
             sys.exit("No subtitles for {} found.".format(media_name))
     return subtitles
@@ -74,29 +74,29 @@ def main():
     if Path("F:\\").is_dir():
         media_dir = Path("F:\\")
         
-    print("Checking media directory: {}\n".format(media_dir))
+    print("Checking media directory: {}".format(media_dir))
     dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
     if len(dirs) == 0:
         sys.exit("No releases in media directory.")
     dirs.sort()
     for nr, dir in enumerate(dirs, 1):
-        print("{}  {}".format(nr, dir.name))
+        print("  {}  {}".format(nr, dir.name))
 
-    choice = input("\nChoose a release: ")
+    choice = input("Choose a release: ")
     dirs = choose_release(dirs, choice)
     
     for release in dirs:
-        download_directory = release
+        download_directory, release_name = release, release.name
         search_name = check_release_tag(release.name)
         
         if not download_directory.is_dir():
             download_directory = media_dir
-            release_name = ".".join(release.name.split(".")[0:-1]) # Removes extension
+            release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
             search_name = check_release_tag(release_name)
         
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # List of all suitable subtitles
-        sub = subtitles[int(input("\nChoose a subtitle: ")) -1] # Choose one from suitable subtitles
+        sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
 
         dl_link = find_download_link(sub)
         r = requests.get("https://subscene.com/{}".format(dl_link))
