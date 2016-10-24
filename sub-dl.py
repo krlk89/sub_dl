@@ -16,10 +16,7 @@ import zipfile
 import watch
 
 def choose_release(dirs, choice):
-    if "-" in choice:
-        start, end = choice.split("-")
-    else:
-        start, end = choice, choice
+    start, end = choice.split("-")
     return dirs[int(start) - 1: int(end)]
 
 def soup(link):
