@@ -16,7 +16,10 @@ import zipfile
 import watch
 
 def choose_release(dirs, choice):
-    start, end = choice.split("-")
+    if "-" in choice:
+        start, end = choice.split("-")
+    else:
+        start, end = choice, choice
     return dirs[int(start) - 1: int(end)]
 
 def soup(link):
@@ -30,14 +33,14 @@ def check_release_tag(release_name):
 
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
-    subtitles = []
+    subtitles = {}
     nr = 0
 
     for table_row in soup_link.find_all("tr"):
         subtitle_info = str(table_row)
         if media_name in subtitle_info and "English" in subtitle_info: # Release name and language
             nr += 1
-            subtitles.append(table_row.find_all("a")[0].get("href")) # Subtitle link
+            subtitles[nr] = table_row.find_all("a")[0].get("href") # Subtitle link
             if "<td class=\"a41\">" in subtitle_info:
                 print(" {} (Hearing impaired)".format(nr))
             else:
@@ -68,8 +71,8 @@ def unpack_subtitle(file, out_dir, release_name):
 
 def main():
     media_dir = Path("/home/kaarel/Downloads/")
-    if Path("F:\\").is_dir():
-        media_dir = Path("F:\\")
+    if Path("/media/kaarel/64/").is_dir():
+        media_dir = Path("/media/kaarel/64/")
         
     print("Checking media directory: {}".format(media_dir))
     dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
@@ -93,7 +96,7 @@ def main():
         
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # List of all suitable subtitles
-        sub = subtitles[int(input("Choose a subtitle: ")) -1] # Choose one from suitable subtitles
+        sub = subtitles[int(input("Choose a subtitle: "))] # Choose one from suitable subtitles
 
         dl_link = find_download_link(sub)
         r = requests.get("https://subscene.com/{}".format(dl_link))
