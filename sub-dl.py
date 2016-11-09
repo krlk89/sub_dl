@@ -15,6 +15,23 @@ import sys
 import zipfile
 import watch
 
+def check_media_dir():
+    media_dir = Path("/home/kaarel/Downloads/")
+    if Path("/media/kaarel/64/").is_dir():
+        media_dir = Path("/media/kaarel/64/")
+    elif if Path("/media/kaarel/32/").is_dir():
+        media_dir = Path("/media/kaarel/32/")
+    
+    print("Checking media directory: {}".format(media_dir))
+    dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
+    if len(dirs) == 0:
+        sys.exit("No releases in media directory.")
+    dirs.sort()
+    for nr, dir in enumerate(dirs, 1):
+        print("  {}  {}".format(nr, dir.name))
+        
+    return dirs, media_dir
+
 def choose_release(dirs, choice):
     if "-" in choice:
         start, end = choice.split("-")
@@ -70,32 +87,20 @@ def unpack_subtitle(file, out_dir, release_name):
         Path("{}/{}".format(out_dir, sub_file)).rename("{}/{}.srt".format(out_dir, release_name))
 
 def main():
-    media_dir = Path("/home/kaarel/Downloads/")
-    if Path("/media/kaarel/64/").is_dir():
-        media_dir = Path("/media/kaarel/64/")
-        
-    print("Checking media directory: {}".format(media_dir))
-    dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
-    if len(dirs) == 0:
-        sys.exit("No releases in media directory.")
-    dirs.sort()
-    for nr, dir in enumerate(dirs, 1):
-        print("  {}  {}".format(nr, dir.name))
-
+    releases, media_dir = check_media_dir()
     choice = input("Choose a release: ")
-    dirs = choose_release(dirs, choice)
+    dirs = choose_release(releases, choice)
     
     for release in dirs:
-        download_directory, release_name = release, release.name
-        search_name = check_release_tag(release.name)
-        
-        if not download_directory.is_dir():
+        if release.is_dir():
+            download_directory, release_name = release, release.name
+        else:
             download_directory = media_dir
-            release_name = ".".join(release_name.split(".")[0:-1]) # Removes extension
-            search_name = check_release_tag(release_name)
-        
+            release_name = ".".join(release.name.split(".")[0:-1]) # Removes extension
+            
+        search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subtitles(search_name) # List of all suitable subtitles
+        subtitles = find_subtitles(search_name) # Dict of all suitable subtitles
         sub = subtitles[int(input("Choose a subtitle: "))] # Choose one from suitable subtitles
 
         dl_link = find_download_link(sub)
