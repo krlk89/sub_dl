@@ -44,13 +44,22 @@ def choose_release(dirs, choice):
 def soup(link):
     r = requests.get(link)
     
-    return BeautifulSoup(r.text, "html.parser")
+    return BeautifulSoup(r.text, "html.parser") # try "lxml"
 
 def check_release_tag(release_name):
     if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
         return release_name.split("[")[0]
         
     return release_name
+    
+def get_sub_rating(sub_link):
+    soup_link = soup("https://subscene.com{}".format(sub_link))
+    
+    x = soup_link.find("div", class_ = "rating")
+    if x:
+        return x.span.text
+        
+    return "N/A"
 
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
@@ -61,22 +70,22 @@ def find_subtitles(media_name):
         subtitle_info = str(table_row)
         if media_name in subtitle_info and "English" in subtitle_info: # Release name and language
             nr += 1
-            subtitles[nr] = table_row.find_all("a")[0].get("href") # Subtitle link
+            subtitle_link = table_row.a.get("href")
+            subtitles[nr] = subtitle_link
+            rating = get_sub_rating(subtitle_link)
             if "<td class=\"a41\">" in subtitle_info:
-                print(" {} (Hearing impaired)".format(nr))
+                print(" {} (Hearing impaired) Rating: {}".format(nr, rating))
             else:
-                print(" {}".format(nr))
+                print(" {} Rating: {}".format(nr, rating))
     if len(subtitles) == 0:
         sys.exit("No subtitles for {} found.".format(media_name))
         
     return subtitles
 
-def find_download_link(sub):
-    soup_link = soup("https://subscene.com{}".format(sub))
-
-    for link in soup_link.find_all("a"):
-        if "download" in str(link):
-            return link.get("href")
+def find_download_link(sub_link):
+    soup_link = soup("https://subscene.com{}".format(sub_link))
+    
+    return soup_link.find(id="downloadButton").get("href")
 
 def download_subtitle(subtitle_zip, download_link):
     with open(subtitle_zip, 'wb') as f:
