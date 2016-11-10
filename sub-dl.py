@@ -54,12 +54,11 @@ def check_release_tag(release_name):
     
 def get_sub_rating(sub_link):
     soup_link = soup("https://subscene.com{}".format(sub_link))
-    
-    x = soup_link.find("div", class_ = "rating")
-    if x:
-        return x.span.text
+    rating = soup_link.find("div", class_ = "rating")
+    if rating:
+        return "Rating: {}".format(rating.span.text)
         
-    return "N/A"
+    return "Rating: ?"
 
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
@@ -74,9 +73,10 @@ def find_subtitles(media_name):
             subtitles[nr] = subtitle_link
             rating = get_sub_rating(subtitle_link)
             if "<td class=\"a41\">" in subtitle_info:
-                print(" {} (Hearing impaired) Rating: {}".format(nr, rating))
+                print(" {} (Hearing impaired)   {}".format(nr, rating))
             else:
-                print(" {} Rating: {}".format(nr, rating))
+                print(" {} {:>30}".format(nr, rating))
+                
     if len(subtitles) == 0:
         sys.exit("No subtitles for {} found.".format(media_name))
         
