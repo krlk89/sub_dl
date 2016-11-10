@@ -19,14 +19,15 @@ def check_media_dir():
     media_dir = Path("/home/kaarel/Downloads/")
     if Path("/media/kaarel/64/").is_dir():
         media_dir = Path("/media/kaarel/64/")
-    elif if Path("/media/kaarel/32/").is_dir():
+    elif Path("/media/kaarel/32/").is_dir():
         media_dir = Path("/media/kaarel/32/")
     
     print("Checking media directory: {}".format(media_dir))
     dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
     if len(dirs) == 0:
-        sys.exit("No releases in media directory.")
+        sys.exit("No releases in {}.".format(media_dir))
     dirs.sort()
+    
     for nr, dir in enumerate(dirs, 1):
         print("  {}  {}".format(nr, dir.name))
         
@@ -37,16 +38,19 @@ def choose_release(dirs, choice):
         start, end = choice.split("-")
     else:
         start, end = choice, choice
+        
     return dirs[int(start) - 1: int(end)]
 
 def soup(link):
     r = requests.get(link)
+    
     return BeautifulSoup(r.text, "html.parser")
 
 def check_release_tag(release_name):
-    if str(release_name)[-1] == "]": # Possible release tag (e.g. [ettv])
-        return str(release_name).split("[")[0]
-    return str(release_name)
+    if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
+        return release_name.split("[")[0]
+        
+    return release_name
 
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
@@ -63,7 +67,8 @@ def find_subtitles(media_name):
             else:
                 print(" {}".format(nr))
     if len(subtitles) == 0:
-            sys.exit("No subtitles for {} found.".format(media_name))
+        sys.exit("No subtitles for {} found.".format(media_name))
+        
     return subtitles
 
 def find_download_link(sub):
@@ -73,18 +78,20 @@ def find_download_link(sub):
         if "download" in str(link):
             return link.get("href")
 
-def download_subtitle(local_filename, download_link):
-    with open(local_filename, 'wb') as f:
+def download_subtitle(subtitle_zip, download_link):
+    with open(subtitle_zip, 'wb') as f:
         for chunk in download_link.iter_content(chunk_size = 1024):
-            if chunk: f.write(chunk)
+            if chunk:
+                f.write(chunk)
 
-def unpack_subtitle(file, out_dir, release_name):
-    with zipfile.ZipFile(file, "r") as zip:
+def unpack_subtitle(sub_file, out_dir, release_name):
+    release_name += ".srt"
+    with zipfile.ZipFile(sub_file, "r") as zip:
         sub_file = zip.namelist()[0]
-        if Path("{}/{}".format(out_dir, sub_file)).exists():
-            print("Subtitle file overwritten.")
+        if Path("{}/{}".format(out_dir, release_name)).exists():
+            print("Previous subtitle file will be overwritten.")
         zip.extractall(str(out_dir))
-        Path("{}/{}".format(out_dir, sub_file)).rename("{}/{}.srt".format(out_dir, release_name))
+        Path("{}/{}".format(out_dir, sub_file)).rename("{}/{}".format(out_dir, release_name))
 
 def main():
     releases, media_dir = check_media_dir()
@@ -97,13 +104,12 @@ def main():
         else:
             download_directory = media_dir
             release_name = ".".join(release.name.split(".")[0:-1]) # Removes extension
-            
+              
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # Dict of all suitable subtitles
-        sub = subtitles[int(input("Choose a subtitle: "))] # Choose one from suitable subtitles
-
-        dl_link = find_download_link(sub)
+        choice = int(input("Choose a subtitle: "))
+        dl_link = find_download_link(subtitles[choice])
         r = requests.get("https://subscene.com/{}".format(dl_link))
         sub_file = "{}/subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
