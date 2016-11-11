@@ -65,14 +65,16 @@ def find_subtitles(media_name):
     subtitles = {}
     nr = 0
 
-    for table_row in soup_link.find_all("tr"):
-        subtitle_info = str(table_row)
-        if media_name in subtitle_info and "English" in subtitle_info: # Release name and language
+    for table_row in soup_link.find_all("tr")[1:]: # Skip first
+        sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
+        language, release = sub_info[0].find_all("span")
+
+        if language.text.strip() == "English" and release.text.strip() == media_name:
             nr += 1
-            subtitle_link = table_row.a.get("href")
+            subtitle_link = sub_info[0].a.get("href")
             subtitles[nr] = subtitle_link
             rating = get_sub_rating(subtitle_link)
-            if "<td class=\"a41\">" in subtitle_info:
+            if len(sub_info) == 2:
                 print(" ({})   Rating: {:>3}   (Hearing impaired)".format(nr, rating))
             else:
                 print(" ({})   Rating: {:>3}".format(nr, rating))
