@@ -56,9 +56,9 @@ def get_sub_rating(sub_link):
     soup_link = soup("https://subscene.com{}".format(sub_link))
     rating = soup_link.find("div", class_ = "rating")
     if rating:
-        return "Rating: {}".format(rating.span.text)
+        return rating.span.text
         
-    return "Rating: ?"
+    return "N/A"
 
 def find_subtitles(media_name):
     soup_link = soup("https://subscene.com/subtitles/release?q={}".format(media_name))
@@ -73,9 +73,9 @@ def find_subtitles(media_name):
             subtitles[nr] = subtitle_link
             rating = get_sub_rating(subtitle_link)
             if "<td class=\"a41\">" in subtitle_info:
-                print(" {} (Hearing impaired)   {}".format(nr, rating))
+                print(" ({})   Rating: {:>3}   (Hearing impaired)".format(nr, rating))
             else:
-                print(" {} {:>30}".format(nr, rating))
+                print(" ({})   Rating: {:>3}".format(nr, rating))
                 
     if len(subtitles) == 0:
         sys.exit("No subtitles for {} found.".format(media_name))
@@ -117,8 +117,10 @@ def main():
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # Dict of all suitable subtitles
-        choice = int(input("Choose a subtitle: "))
-        dl_link = find_download_link(subtitles[choice])
+        choice = input("Choose a subtitle: ")
+        if choice == "q":
+            sys.exit("Quit.")
+        dl_link = find_download_link(subtitles[int(choice)])
         r = requests.get("https://subscene.com/{}".format(dl_link))
         sub_file = "{}/subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
