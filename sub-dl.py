@@ -23,7 +23,8 @@ def check_media_dir():
         media_dir = Path("/media/kaarel/32/")
     
     print("Checking media directory: {}".format(media_dir))
-    dirs = [x for x in media_dir.iterdir() if x.name.count(".") > 2] # Files and subdirs in media dir
+    # Files and subdirs in media dir
+    dirs = [x for x in media_dir.iterdir() if x.name.count(".") > 2 and x.name[-4:] != ".srt"]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
     
@@ -117,9 +118,9 @@ def main():
     
     for release in dirs:
         if release.is_dir():
-            download_directory, release_name = release, release.name
+            download_dir, release_name = release, release.name
         else:
-            download_directory = media_dir
+            download_dir = media_dir
             release_name = ".".join(release.name.split(".")[0:-1]) # Removes extension
               
         search_name = check_release_tag(release_name)
@@ -133,12 +134,13 @@ def main():
         r = requests.get("https://subscene.com/{}".format(dl_link))
         sub_file = "{}/subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
-        unpack_subtitle(sub_file, download_directory, release_name)
+        unpack_subtitle(sub_file, download_dir, release_name)
         Path(sub_file).unlink() # Deletes subtitle.zip
 
         if len(sys.argv) > 1 and sys.argv[1] == "-w":
-            watch.launch_vlc(str(release))
+            watch.launch_vlc(release.name)
 
     sys.exit("Done.")
 
-main()
+if __name__ == "__main__":
+    main()
