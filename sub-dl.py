@@ -23,14 +23,12 @@ def check_media_dir():
         media_dir = Path("/media/kaarel/32/")
     
     print("Checking media directory: {}".format(media_dir))
-    dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
-    dirs_ = {nr:x for nr, x in enumerate(media_dir.iterdir(), start=1) if str(x).count(".") > 2}
-    if len(dirs) == 0:
+    dirs = [x for x in media_dir.iterdir() if x.name.count(".") > 2] # Files and subdirs in media dir
+    if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
-    dirs.sort()
     
     for nr, dir in enumerate(dirs, 1):
-        print("  {}  {}".format(nr, dir.name))
+        print("  ({})  {}".format(nr, dir.name))
         
     return dirs, media_dir
 
@@ -39,13 +37,20 @@ def choose_release(dirs, choice):
         start, end = choice.split("-")
     else:
         start, end = choice, choice
+   
+    start, end = map(int, (start, end))
+
+    if end > len(dirs):
+        end = len(dirs)
+    if start > len(dirs):
+        sys.exit("You chose a non-existing release. Quit.")
         
-    return dirs[int(start) - 1: int(end)]
+    return dirs[start - 1: end]
 
 def soup(link):
     r = requests.get(link)
     
-    return BeautifulSoup(r.text, "html.parser") # try "lxml"
+    return BeautifulSoup(r.text, "html.parser") # Try "lxml"
 
 def check_release_tag(release_name):
     if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
@@ -76,11 +81,11 @@ def find_subtitles(media_name):
             subtitles[nr] = subtitle_link
             rating = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
-                print(" ({})   Rating: {:>3}   (Hearing impaired)".format(nr, rating))
+                print(" ({})  Rating: {:>3}  (Hearing impaired)".format(nr, rating))
             else:
-                print(" ({})   Rating: {:>3}".format(nr, rating))
+                print(" ({})  Rating: {:>3}".format(nr, rating))
                 
-    if len(subtitles) == 0:
+    if not subtitles:
         sys.exit("No subtitles for {} found.".format(media_name))
         
     return subtitles
@@ -120,10 +125,11 @@ def main():
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subtitles(search_name) # Dict of all suitable subtitles
-        choice = input("Choose a subtitle: ")
-        if choice == "q":
-            sys.exit("Quit.")
-        dl_link = find_download_link(subtitles[int(choice)])
+        choice = int(input("Choose a subtitle: "))
+        try:
+            dl_link = find_download_link(subtitles[choice])
+        except KeyError:
+            sys.exit("You chose a non-existing subtitle. Quit.")
         r = requests.get("https://subscene.com/{}".format(dl_link))
         sub_file = "{}/subtitle.zip".format(download_directory)
         download_subtitle(sub_file, r)
