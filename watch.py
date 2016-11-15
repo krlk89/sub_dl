@@ -2,7 +2,7 @@
 Opens VLC with a media file.
 """
 
-def launch_vlc(media_file):
+def launch_vlc(media_file = ""):
     import subprocess
     
     subprocess.call(["vlc", media_file])

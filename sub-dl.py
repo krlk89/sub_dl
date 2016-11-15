@@ -24,6 +24,7 @@ def check_media_dir():
     
     print("Checking media directory: {}".format(media_dir))
     dirs = [x for x in media_dir.iterdir() if str(x).count(".") > 2] # Files and subdirs in media dir
+    dirs_ = {nr:x for nr, x in enumerate(media_dir.iterdir(), start=1) if str(x).count(".") > 2}
     if len(dirs) == 0:
         sys.exit("No releases in {}.".format(media_dir))
     dirs.sort()
