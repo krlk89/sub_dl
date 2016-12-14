@@ -10,6 +10,7 @@ Usage:
 
 from bs4 import BeautifulSoup
 from pathlib import Path
+import operator
 import requests
 import sys
 import zipfile
@@ -18,9 +19,9 @@ import subprocess
 def check_media_dir():
     media_dir = Path("/home/kaarel/Downloads/")
     if Path("/media/kaarel/64/").is_dir():
-        media_dir = Path("/media/kaarel/64/")
+        media_dir = Path("/media/kaarel/64/Media/")
     elif Path("/media/kaarel/32/").is_dir():
-        media_dir = Path("/media/kaarel/32/")
+        media_dir = Path("/media/kaarel/32/Media/")
     
     sub_extensions = (".sub", ".idx", ".srt")
     
@@ -71,27 +72,38 @@ def get_sub_rating(sub_link):
 
 def find_subs(search_name):
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
-    subtitles = {}
-    nr = 0
-
+    subtitles = []
+    
     for table_row in soup_link.find_all("tr")[1:]: # Skip first
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
 
         if language.text.strip() == "English" and release.text.strip() == search_name:
-            nr += 1
             subtitle_link = sub_info[0].a.get("href")
-            subtitles[nr] = subtitle_link
+            
             rating = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
-                print(" ({})  Rating: {:>3}  (Hearing impaired)".format(nr, rating))
+                subtitles.append((subtitle_link, rating, "HI"))
             else:
-                print(" ({})  Rating: {:>3}".format(nr, rating))
-                
+                subtitles.append((subtitle_link, rating, ""))
+
     if not subtitles:
         sys.exit("No subtitles for {} found.".format(search_name))
-        
+
     return subtitles
+
+def show_available_subtitles(subtitles):
+    subtitles = sorted(subtitles, key = operator.itemgetter(1, 2))
+    print(" Nr\tRating\tVotes\tHearing impaired")
+    for nr, sub in enumerate(subtitles, start = 1):
+        if sub[2] == "":
+            print(" ({})\t{}\t42".format(nr, sub[1]))
+        else:
+            print(" ({})\t{}\t42\tX".format(nr, sub[1]))
+            
+    choice = int(input("Choose a subtitle: ")) - 1
+    
+    return subtitles[choice][0]
 
 def get_download_link(sub_link):
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
@@ -125,12 +137,9 @@ def main():
               
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name) # Dict of all suitable subtitles
-        choice = int(input("Choose a subtitle: "))
-        try:
-            dl_link = get_download_link(subtitles[choice])
-        except KeyError:
-            sys.exit("You chose a non-existing subtitle. Quit.")
+        subtitles = find_subs(search_name) # List of tuples
+        chosen_sub = show_available_subtitles(subtitles)
+        dl_link = get_download_link(chosen_sub)
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
         sub_zip = "{}/subtitle.zip".format(download_dir)
         download_sub(sub_zip, sub_link)
