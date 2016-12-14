@@ -66,9 +66,10 @@ def get_sub_rating(sub_link):
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
     rating = soup_link.find("div", class_ = "rating")
     if rating:
-        return rating.span.text
+        vote_count = rating.attrs["data-hint"].split()[1]
+        return rating.span.text, vote_count
         
-    return "N/A"
+    return "N/A", ""
 
 def find_subs(search_name):
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
@@ -97,9 +98,9 @@ def show_available_subtitles(subtitles):
     print(" Nr\tRating\tVotes\tHearing impaired")
     for nr, sub in enumerate(subtitles, start = 1):
         if sub[2] == "":
-            print(" ({})\t{}\t42".format(nr, sub[1]))
+            print(" ({})\t{}\t{}".format(nr, sub[1][0], sub[1][1]))
         else:
-            print(" ({})\t{}\t42\tX".format(nr, sub[1]))
+            print(" ({})\t{}\t{}\tX".format(nr, sub[1][0], sub[1][1]))
             
     choice = int(input("Choose a subtitle: ")) - 1
     
@@ -125,9 +126,14 @@ def unpack_sub(sub_zip, download_dir, release_name):
         Path("{}/{}".format(download_dir, sub_file)).rename("{}/{}".format(download_dir, release_name))
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "-auto": # TODO
+        pass
     releases, media_dir = check_media_dir()
-    choice = input("Choose a release: ")
-    dirs = choose_release(releases, choice)
+    if len(releases) == 1:
+        dirs = releases
+    else:
+        choice = input("Choose a release: ")
+        dirs = choose_release(releases, choice)
     
     for release in dirs:
         if release.is_dir():
