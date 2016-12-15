@@ -69,7 +69,7 @@ def get_sub_rating(sub_link):
         vote_count = rating.attrs["data-hint"].split()[1]
         return rating.span.text, vote_count
         
-    return "N/A", ""
+    return -1, -1
 
 def find_subs(search_name):
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
@@ -82,11 +82,11 @@ def find_subs(search_name):
         if language.text.strip() == "English" and release.text.strip() == search_name:
             subtitle_link = sub_info[0].a.get("href")
             
-            rating = get_sub_rating(subtitle_link)
+            rating, vote_count = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
-                subtitles.append((subtitle_link, rating, "HI"))
+                subtitles.append([subtitle_link, int(rating), int(vote_count), 0])
             else:
-                subtitles.append((subtitle_link, rating, ""))
+                subtitles.append([subtitle_link, int(rating), int(vote_count), 1])
 
     if not subtitles:
         sys.exit("No subtitles for {} found.".format(search_name))
@@ -94,13 +94,15 @@ def find_subs(search_name):
     return subtitles
 
 def show_available_subtitles(subtitles):
-    subtitles = sorted(subtitles, key = operator.itemgetter(1, 2))
+    subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
     print(" Nr\tRating\tVotes\tHearing impaired")
     for nr, sub in enumerate(subtitles, start = 1):
-        if sub[2] == "":
-            print(" ({})\t{}\t{}".format(nr, sub[1][0], sub[1][1]))
+        if sub[1] == -1:
+            sub[1], sub[2] = "N/A", ""
+        if sub[3] == 1:
+            print(" ({})\t{}\t{}".format(nr, sub[1], sub[2]))
         else:
-            print(" ({})\t{}\t{}\tX".format(nr, sub[1][0], sub[1][1]))
+            print(" ({})\t{}\t{}\tX".format(nr, sub[1], sub[2]))
             
     choice = int(input("Choose a subtitle: ")) - 1
     
