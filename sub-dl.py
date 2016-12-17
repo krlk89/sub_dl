@@ -5,8 +5,8 @@ Downloads subtitles from Subscene (https://subscene.com).
 
 Usage:
     ./sub-dl.py [-w] [-a]
-    -a - Choose the top-rated non hearing-impaired subtitle automatically.
-    -w - Launch VLC with the media file.
+    -a --auto - Choose the top-rated non hearing-impaired subtitle automatically.
+    -w --watch - Launch VLC with the media file.
 """
 
 from bs4 import BeautifulSoup
@@ -20,9 +20,13 @@ import subprocess
 
 def parse_arguments():
     """ """
+    parser = argparse.ArgumentParser()
     
+    # Optional arguments
+    parser.add_argument("-a", "--auto", action = "store_true")
+    parser.add_argument("-w", "--watch", action = "store_true")
     
-    return 1
+    return parser.parse_args()
 
 def check_media_dir():
     """ """
@@ -96,18 +100,15 @@ def find_subs(search_name):
         if language.text.strip() == "English" and release.text.strip() == search_name:
             subtitle_link = sub_info[0].a.get("href")
             
-            rating, vote_count = get_sub_rating(subtitle_link)
+            rating, vote_count = map(int, get_sub_rating(subtitle_link))
             if len(sub_info) == 2:
-                subtitles.append([subtitle_link, int(rating), int(vote_count), 0])
+                subtitles.append([subtitle_link, rating, vote_count, 0]) # HI sub
             else:
-                subtitles.append([subtitle_link, int(rating), int(vote_count), 1])
-
-    if not subtitles:
-        sys.exit("No subtitles for {} found.".format(search_name))
+                subtitles.append([subtitle_link, rating, vote_count, 1]) # Non-HI sub
 
     return subtitles
 
-def show_available_subtitles(subtitles):
+def show_available_subtitles(subtitles, args_auto):
     """ """
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
     print(" Nr\tRating\tVotes\tHearing impaired")
@@ -120,8 +121,9 @@ def show_available_subtitles(subtitles):
         else:
             print(" ({})\t{}\t{}\tX".format(nr, sub[1], sub[2]))
             
-    if len(sys.argv) > 1 and sys.argv[1] == "-a":
-        choice = 0
+    if args_auto:
+        print("Subtitle nr 1 chosen automatically.")
+        return subtitles[0][0]
     else:        
         choice = int(input("Choose a subtitle: ")) - 1
     
@@ -150,9 +152,8 @@ def unpack_sub(sub_zip, download_dir, release_name):
         Path("{}/{}".format(download_dir, sub_file)).rename("{}/{}".format(download_dir, release_name))
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "-a":
-        print("The best subtitle will be chosen automatically.")
-        
+    args = parse_arguments()
+
     releases, media_dir = check_media_dir()
     if len(releases) == 1:
         dirs = releases
@@ -168,8 +169,12 @@ def main():
               
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name) # List of tuples
-        chosen_sub = show_available_subtitles(subtitles)
+        subtitles = find_subs(search_name) # List of lists
+        if not subtitles and len(dirs) == 1:
+            sys.exit("No subtitles for {} found.".format(search_name))
+        elif not subtitles:
+            continue
+        chosen_sub = show_available_subtitles(subtitles, args.auto)
         dl_link = get_download_link(chosen_sub)
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
         sub_zip = "{}/subtitle.zip".format(download_dir)
@@ -177,7 +182,7 @@ def main():
         unpack_sub(sub_zip, download_dir, release_name + ".srt")
         Path(sub_zip).unlink() # Deletes subtitle.zip
 
-        if len(sys.argv) > 1 and sys.argv[1] == "-w" and release.is_file():
+        if args.watch and release.is_file():
             subprocess.call(["vlc", str(release)])
 
     sys.exit("Done.")
