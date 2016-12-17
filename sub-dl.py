@@ -4,19 +4,28 @@
 Downloads subtitles from Subscene (https://subscene.com).
 
 Usage:
-    ./sub-dl.py [-w]
-    -w - Launches VLC with the media file.
+    ./sub-dl.py [-w] [-a]
+    -a - Choose the top-rated non hearing-impaired subtitle automatically.
+    -w - Launch VLC with the media file.
 """
 
 from bs4 import BeautifulSoup
 from pathlib import Path
+import argparse
 import operator
 import requests
 import sys
 import zipfile
 import subprocess
 
+def parse_arguments():
+    """ """
+    
+    
+    return 1
+
 def check_media_dir():
+    """ """
     media_dir = Path("/home/kaarel/Downloads/")
     if Path("/media/kaarel/64/").is_dir():
         media_dir = Path("/media/kaarel/64/Media/")
@@ -34,11 +43,12 @@ def check_media_dir():
         sys.exit("No releases in {}.".format(media_dir))
     
     for nr, dir in enumerate(dirs, 1):
-        print("  ({})  {}".format(nr, dir.name))
+        print(" ({})  {}".format(nr, dir.name))
         
     return dirs, media_dir
 
 def choose_release(dirs, choice):
+    """ """
     if "-" in choice:
         start, end = map(int, choice.split("-"))
     else:
@@ -52,17 +62,20 @@ def choose_release(dirs, choice):
     return dirs[start - 1: end]
 
 def get_soup(link):
+    """ """
     r = requests.get(link)
     
     return BeautifulSoup(r.text, "html.parser")
 
 def check_release_tag(release_name):
+    """ """
     if release_name[-1] == "]": # Possible release tag (e.g. [ettv])
         return release_name.split("[")[0]
         
     return release_name
     
 def get_sub_rating(sub_link):
+    """ """
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
     rating = soup_link.find("div", class_ = "rating")
     if rating:
@@ -72,6 +85,7 @@ def get_sub_rating(sub_link):
     return -1, -1
 
 def find_subs(search_name):
+    """ """
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
     subtitles = []
     
@@ -94,32 +108,40 @@ def find_subs(search_name):
     return subtitles
 
 def show_available_subtitles(subtitles):
+    """ """
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
     print(" Nr\tRating\tVotes\tHearing impaired")
     for nr, sub in enumerate(subtitles, start = 1):
         if sub[1] == -1:
             sub[1], sub[2] = "N/A", ""
+            
         if sub[3] == 1:
             print(" ({})\t{}\t{}".format(nr, sub[1], sub[2]))
         else:
             print(" ({})\t{}\t{}\tX".format(nr, sub[1], sub[2]))
             
-    choice = int(input("Choose a subtitle: ")) - 1
+    if len(sys.argv) > 1 and sys.argv[1] == "-a":
+        choice = 0
+    else:        
+        choice = int(input("Choose a subtitle: ")) - 1
     
     return subtitles[choice][0]
 
 def get_download_link(sub_link):
+    """ """
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
     
     return soup_link.find(id="downloadButton").get("href")
 
 def download_sub(sub_zip, sub_link):
+    """ """
     with open(sub_zip, 'wb') as f:
         for chunk in sub_link.iter_content(chunk_size = 1024):
             if chunk:
                 f.write(chunk)
 
 def unpack_sub(sub_zip, download_dir, release_name):
+    """ """
     with zipfile.ZipFile(sub_zip, "r") as zip:
         sub_file = zip.namelist()[0]
         if Path("{}/{}".format(download_dir, release_name)).exists():
@@ -128,8 +150,9 @@ def unpack_sub(sub_zip, download_dir, release_name):
         Path("{}/{}".format(download_dir, sub_file)).rename("{}/{}".format(download_dir, release_name))
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "-auto": # TODO
-        pass
+    if len(sys.argv) > 1 and sys.argv[1] == "-a":
+        print("The best subtitle will be chosen automatically.")
+        
     releases, media_dir = check_media_dir()
     if len(releases) == 1:
         dirs = releases
