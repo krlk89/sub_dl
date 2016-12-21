@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Downloads subtitles from Subscene (https://subscene.com).
+Download subtitles from Subscene (https://subscene.com).
+
 
 Usage:
     ./sub-dl.py
@@ -88,7 +89,12 @@ def get_sub_rating(sub_link):
     return -1, -1
 
 def find_subs(search_name):
-    """Return list of lists for subtitle link and info."""
+    """Return list of lists for subtitle link and info.
+       0 - Subtitle page link
+       1 - Rating
+       2 - Vote count
+       3 - Non-HI = 1, HI = 0
+    """
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
     subtitles = []
     
@@ -108,7 +114,7 @@ def find_subs(search_name):
     return subtitles
 
 def show_available_subtitles(subtitles, args_auto):
-    """List all available subtitles and choose one from them."""
+    """Print all available subtitles and choose one from them."""
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
     print(" Nr\tRating\tVotes\tHearing impaired")
     for nr, sub in enumerate(subtitles, start = 1):
@@ -120,7 +126,7 @@ def show_available_subtitles(subtitles, args_auto):
         else:
             print(" ({})\t{}\t{}\tX".format(nr, sub[1], sub[2]))
             
-    if args_auto:
+    if args_auto or len(subtitles) == 1:
         print("Subtitle nr 1 chosen automatically.")
         return subtitles[0][0]
     else:        
