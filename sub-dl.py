@@ -10,6 +10,8 @@ Usage:
     [-w] [--watch] - Launch VLC with the media file.
 """
 
+import config
+import logger
 from bs4 import BeautifulSoup
 from pathlib import Path
 import argparse
@@ -23,6 +25,7 @@ def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
     # Optional arguments
+    #parser.add_argument("-c", "--config", action = "store_true")
     parser.add_argument("-a", "--auto", action = "store_true")
     parser.add_argument("-w", "--watch", action = "store_true")
     
@@ -175,9 +178,10 @@ def main():
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
         subtitles = find_subs(search_name) # List of lists
-        if not subtitles and len(dirs) == 1:
-            sys.exit("No subtitles for {} found.".format(search_name))
+        if not subtitles and release == dirs[-1]:
+            sys.exit("No subtitles for {} found. Exited.".format(search_name))
         elif not subtitles:
+            print("No subtitles for {} found. Continuing search.".format(search_name))
             continue
         chosen_sub = show_available_subtitles(subtitles, args.auto)
         dl_link = get_download_link(chosen_sub)
