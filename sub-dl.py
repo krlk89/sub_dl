@@ -4,10 +4,7 @@
 Download subtitles from Subscene (https://subscene.com).
 
 
-Usage:
-    ./sub-dl.py
-    [-a] [--auto] - Choose the top-rated non hearing-impaired subtitle automatically.
-    [-w] [--watch] - Launch VLC with the media file.
+Usage: ./sub-dl.py
 """
 
 import config
@@ -22,23 +19,17 @@ import zipfile
 import subprocess
 
 def parse_arguments():
-    """Parse command line arguments."""
+    """Parse command line arguments. All are optional."""
     parser = argparse.ArgumentParser()
-    # Optional arguments
-    #parser.add_argument("-c", "--config", action = "store_true")
+    parser.add_argument("-c", "--config", action = "store_true")
     parser.add_argument("-a", "--auto", action = "store_true")
     parser.add_argument("-w", "--watch", action = "store_true")
+    #parser.add_argument("-h", "--help", action = )
     
     return parser.parse_args()
 
-def check_media_dir():
-    """Return media directory and a list of releases inside the media directory."""
-    media_dir = Path("/home/kaarel/Downloads/")
-    if Path("/media/kaarel/64/").is_dir():
-        media_dir = Path("/media/kaarel/64/Media/")
-    elif Path("/media/kaarel/32/").is_dir():
-        media_dir = Path("/media/kaarel/32/Media/")
-    
+def check_media_dir(media_dir):
+    """Return a list of releases inside the media directory."""
     sub_extensions = (".sub", ".idx", ".srt")
     
     print("Checking media directory: {}".format(media_dir))
@@ -52,7 +43,7 @@ def check_media_dir():
     for nr, dir in enumerate(dirs, 1):
         print(" ({})  {}".format(nr, dir.name))
         
-    return dirs, media_dir
+    return dirs
 
 def choose_release(dirs, choice):
     """Choose release(s) for which you want to download subtitles."""
@@ -91,7 +82,7 @@ def get_sub_rating(sub_link):
         
     return -1, -1
 
-def find_subs(search_name):
+def find_subs(search_name, lang):
     """Return list of lists for subtitle link and info.
        0 - Subtitle page link
        1 - Rating
@@ -105,7 +96,7 @@ def find_subs(search_name):
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
 
-        if language.text.strip() == "English" and release.text.strip() == search_name:
+        if language.text.strip() == lang and release.text.strip() == search_name:
             subtitle_link = sub_info[0].a.get("href")
             
             rating, vote_count = map(int, get_sub_rating(subtitle_link))
@@ -159,10 +150,8 @@ def unpack_sub(sub_zip, download_dir, release_name):
         zip.extractall(str(download_dir))
         Path("{}/{}".format(download_dir, sub_file)).rename("{}/{}".format(download_dir, release_name))
 
-def main():
-    args = parse_arguments()
-
-    releases, media_dir = check_media_dir()
+def main(arguments, media_dir, language):
+    releases = check_media_dir(Path(media_dir))
     if len(releases) == 1:
         dirs = releases
     else:
@@ -177,13 +166,13 @@ def main():
               
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name) # List of lists
+        subtitles = find_subs(search_name, language) # List of lists
         if not subtitles and release == dirs[-1]:
             sys.exit("No subtitles for {} found. Exited.".format(search_name))
         elif not subtitles:
             print("No subtitles for {} found. Continuing search.".format(search_name))
             continue
-        chosen_sub = show_available_subtitles(subtitles, args.auto)
+        chosen_sub = show_available_subtitles(subtitles, arguments.auto)
         dl_link = get_download_link(chosen_sub)
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
         sub_zip = "{}/subtitle.zip".format(download_dir)
@@ -191,10 +180,17 @@ def main():
         unpack_sub(sub_zip, download_dir, release_name + ".srt")
         Path(sub_zip).unlink() # Deletes subtitle.zip
 
-        if args.watch and release.is_file() and len(dirs) == 1:
+        if arguments.watch and release.is_file() and len(dirs) == 1:
             subprocess.call(["vlc", str(release)])
 
     sys.exit("Done.")
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    path = "settings.ini"
+    
+    if not Path(path).is_file() or args.config:
+        config.create_config(path)
+    
+    media_dir, language = config.read_config(path)       
+    main(args, media_dir, language)
