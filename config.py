@@ -5,7 +5,7 @@ def create_config(path):
     config = configparser.ConfigParser()
     config.add_section("Settings")
     directory = input("Type your media directory: ")
-    language = input("Type your preferred subtitle language: ")
+    language = input("Type your preferred subtitle language (e.g English): ")
     config.set("Settings", "dir", directory)
     config.set("Settings", "language", language)
     

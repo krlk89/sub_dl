@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 
-"""
-Download subtitles from Subscene (https://subscene.com).
-
-
-Usage: ./sub-dl.py
-"""
+"""Download subtitles from Subscene (https://subscene.com)."""
 
 import config
 import logger
@@ -20,11 +15,10 @@ import subprocess
 
 def parse_arguments():
     """Parse command line arguments. All are optional."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", action = "store_true")
-    parser.add_argument("-a", "--auto", action = "store_true")
-    parser.add_argument("-w", "--watch", action = "store_true")
-    #parser.add_argument("-h", "--help", action = )
+    parser = argparse.ArgumentParser(description = "Subscene subtitle downloader.")
+    parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
+    parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
+    parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
     
     return parser.parse_args()
 
@@ -95,8 +89,9 @@ def find_subs(search_name, lang):
     for table_row in soup_link.find_all("tr")[1:]: # Skip first
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
+        language, release = map(str.strip, [language.text, release.text])
 
-        if language.text.strip() == lang and release.text.strip() == search_name:
+        if language.lower() == lang.lower() and release.lower() == search_name.lower():
             subtitle_link = sub_info[0].a.get("href")
             
             rating, vote_count = map(int, get_sub_rating(subtitle_link))
@@ -181,7 +176,10 @@ def main(arguments, media_dir, language):
         Path(sub_zip).unlink() # Deletes subtitle.zip
 
         if arguments.watch and release.is_file() and len(dirs) == 1:
-            subprocess.call(["vlc", str(release)])
+            try:
+                subprocess.call(["vlc", str(release)])
+            except FileNotFoundError:
+                sys.exit("VLC not installed or you are not using a Linux based system.")
 
     sys.exit("Done.")
 
