@@ -15,7 +15,7 @@ import subprocess
 
 def parse_arguments():
     """Parse command line arguments. All are optional."""
-    parser = argparse.ArgumentParser(description = "Subscene subtitle downloader.")
+    parser = argparse.ArgumentParser(description = "sub-dl: Subscene subtitle downloader.")
     parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
     parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
     parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
@@ -30,12 +30,12 @@ def check_media_dir(media_dir):
     # Files and subdirs in media dir
     dirs = [x for x in media_dir.iterdir()
             if x.name.count(".") > 2
-            and x.name[-4:] not in sub_extensions]
+            and x.suffix not in sub_extensions]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
     
-    for nr, dir in enumerate(dirs, 1):
-        print(" ({})  {}".format(nr, dir.name))
+    for nr, release in enumerate(dirs, 1):
+        print(" ({})  {}".format(nr, release.name))
         
     return dirs
 
@@ -44,10 +44,10 @@ def choose_release(dirs, choice):
     if "-" in choice:
         start, end = map(int, choice.split("-"))
     else:
-        start, end = int(choice), int(choice)
+        start, end = map(int, [choice, choice])
     
     if start <= 0 or end <= 0 or start > len(dirs):
-        sys.exit("You chose a non-existing release. Quit.")
+        sys.exit("You chose a non-existing release. Exited.")
     if end > len(dirs):
         end = len(dirs)    
         
@@ -118,10 +118,13 @@ def show_available_subtitles(subtitles, args_auto):
     if args_auto or len(subtitles) == 1:
         print("Subtitle nr 1 chosen automatically.")
         return subtitles[0][0]
-    else:        
-        choice = int(input("Choose a subtitle: ")) - 1
-    
-    return subtitles[choice][0]
+    else:
+        try:
+            choice = int(input("Choose a subtitle: ")) - 1
+            return subtitles[choice][0]
+        except (IndexError, ValueError):
+            print("You chose a non-existing subtitle. Subtitle nr 1 chosen instead.")
+            return subtitles[0][0]
 
 def get_download_link(sub_link):
     """Return subtitle download link for the chosen subtitle."""
@@ -172,7 +175,7 @@ def main(arguments, media_dir, language):
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
         sub_zip = "{}/subtitle.zip".format(download_dir)
         download_sub(sub_zip, sub_link)
-        unpack_sub(sub_zip, download_dir, release_name + ".srt")
+        unpack_sub(sub_zip, download_dir, "{}.srt".format(release_name))
         Path(sub_zip).unlink() # Deletes subtitle.zip
 
         if arguments.watch and release.is_file() and len(dirs) == 1:
@@ -185,10 +188,10 @@ def main(arguments, media_dir, language):
 
 if __name__ == "__main__":
     args = parse_arguments()
-    path = "settings.ini"
+    settings_file = "settings.ini"
     
-    if not Path(path).is_file() or args.config:
-        config.create_config(path)
+    if not Path(settings_file).is_file() or args.config:
+        config.create_config(settings_file)
     
-    media_dir, language = config.read_config(path)       
+    media_dir, language = config.read_config(settings_file)       
     main(args, media_dir, language)
