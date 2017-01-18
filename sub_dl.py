@@ -4,7 +4,10 @@
 
 import config
 import logger
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    sys.exit("BeautifulSoup module is not installed!")
 from pathlib import Path
 import argparse
 import operator
@@ -84,7 +87,6 @@ def find_subs(search_name, lang):
        3 - Non-HI = 1, HI = 0
     """
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
-    subtitles = []
     
     for table_row in soup_link.find_all("tr")[1:]: # Skip first
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
@@ -96,11 +98,9 @@ def find_subs(search_name, lang):
             
             rating, vote_count = map(int, get_sub_rating(subtitle_link))
             if len(sub_info) == 2:
-                subtitles.append([subtitle_link, rating, vote_count, 0]) # HI sub
+                yield [subtitle_link, rating, vote_count, 0] # HI sub
             else:
-                subtitles.append([subtitle_link, rating, vote_count, 1]) # Non-HI sub
-
-    return subtitles
+                yield [subtitle_link, rating, vote_count, 1] # Non-HI sub
 
 def show_available_subtitles(subtitles, args_auto):
     """Print all available subtitles and choose one from them."""

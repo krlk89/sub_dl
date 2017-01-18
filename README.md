@@ -1,15 +1,15 @@
-# sub-dl: Subscene subtitle downloader
+# sub_dl: Subscene subtitle downloader
 
 This script downloads subtitle files from [Subscene](https://subscene.com).
 
-## Requirements:
+## Dependencies:
 * [Python 3](https://www.python.org/)
 * [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 
 ## Example:
-1. On the first launch your input is needed for generating the configuration file.
+1. On the first launch your input is needed for generating the configuration file. You can later change these preferences by launching the script as ./sub_dl.py -c.
     ```
-    user@home-pc:~/sub-dl$ ./sub-dl.py
+    user@home-pc:~/sub_dl$ ./sub_dl.py
     Type your media directory: /home/user/Downloads
     Type your preferred subtitle language (e.g. English): English
     ```
@@ -27,19 +27,19 @@ This script downloads subtitle files from [Subscene](https://subscene.com).
 3. Choose one from subtitles that are suitable for the selected release. Hearing impaired subtitles are marked with an X.
 Downloaded subtitle file will be renamed after the release directory or file. **Other files on your computer will not be modified in any way (except when a subtitle file with the same name already exists - then it will be overwritten)**!
     ```
-    Nr	Rating	Votes	Hearing impaired
-     (1)	9	16
-     (2)	N/A	
-     (3)	10	16	X
+    Nr      Rating  Votes	Hearing impaired
+    (1)	    9	    16
+    (2)	    N/A
+    (3)	    10	    16	    X
     Choose a subtitle: 3
     Done.
-    user@home-pc:~/sub-dl$
+    user@home-pc:~/sub_dl$
     ```
 Note: If there's only one release and/or subtitle available then it will be chosen automatically.
 
 4. For help and available command line arguments:
     ```
-    ./sub-dl -h 
+    ./sub_dl -h 
     ```
 
 Enjoy!
