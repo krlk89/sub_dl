@@ -4,17 +4,17 @@
 
 import config
 import logger
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    sys.exit("BeautifulSoup module is not installed!")
 from pathlib import Path
 import argparse
 import operator
-import requests
 import sys
 import zipfile
 import subprocess
+try:
+    from bs4 import BeautifulSoup
+    import requests
+except ImportError:
+    sys.exit("Missing dependencies. Type 'pip install -r requirements.txt' to install them.")
 
 def parse_arguments():
     """Parse command line arguments. All are optional."""
@@ -75,7 +75,7 @@ def get_sub_rating(sub_link):
     rating = soup_link.find("div", class_ = "rating")
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
-        return rating.span.text, vote_count
+        return int(rating.span.text), int(vote_count)
         
     return -1, -1
 
@@ -96,7 +96,7 @@ def find_subs(search_name, lang):
         if language.lower() == lang.lower() and release.lower() == search_name.lower():
             subtitle_link = sub_info[0].a.get("href")
             
-            rating, vote_count = map(int, get_sub_rating(subtitle_link))
+            rating, vote_count = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
                 yield [subtitle_link, rating, vote_count, 0] # HI sub
             else:
@@ -105,6 +105,9 @@ def find_subs(search_name, lang):
 def show_available_subtitles(subtitles, args_auto):
     """Print all available subtitles and choose one from them."""
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
+    if not subtitles:
+        return None
+
     print(" Nr\tRating\tVotes\tHearing impaired")
     for nr, sub in enumerate(subtitles, start = 1):
         if sub[1] == -1:
@@ -164,13 +167,14 @@ def main(arguments, media_dir, language):
               
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name, language) # List of lists
-        if not subtitles and release == dirs[-1]:
+        subtitles = find_subs(search_name, language)
+        chosen_sub = show_available_subtitles(subtitles, arguments.auto)
+        if not chosen_sub and release == dirs[-1]:
             sys.exit("No subtitles for {} found. Exited.".format(search_name))
         elif not subtitles:
             print("No subtitles for {} found. Continuing search.".format(search_name))
             continue
-        chosen_sub = show_available_subtitles(subtitles, arguments.auto)
+            
         dl_link = get_download_link(chosen_sub)
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
         sub_zip = "{}/subtitle.zip".format(download_dir)
@@ -183,7 +187,7 @@ def main(arguments, media_dir, language):
                 subprocess.call(["vlc", str(release)])
             except FileNotFoundError:
                 sys.exit("VLC not installed or you are not using a Linux based system.")
-
+    
     sys.exit("Done.")
 
 if __name__ == "__main__":

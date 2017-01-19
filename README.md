@@ -2,10 +2,16 @@
 
 This script downloads subtitle files from [Subscene](https://subscene.com).
 
-## Dependencies:
-* [Python 3](https://www.python.org/)
-* [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
+[Python 3](https://www.python.org/) is required.
 
+## Dependencies:
+* [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
+* [Requests](http://docs.python-requests.org/en/master/)
+
+Easiest way to install both BeautifulSoup and Requests:
+
+    user@home-pc:~/sub_dl$ pip install -r requirements.txt
+    
 ## Example:
 1. On the first launch your input is needed for generating the configuration file. You can later change these preferences by launching the script as ./sub_dl.py -c.
     ```
@@ -25,7 +31,8 @@ This script downloads subtitle files from [Subscene](https://subscene.com).
     ```
 
 3. Choose one from subtitles that are suitable for the selected release. Hearing impaired subtitles are marked with an X.
-Downloaded subtitle file will be renamed after the release directory or file. **Other files on your computer will not be modified in any way (except when a subtitle file with the same name already exists - then it will be overwritten)**!
+Downloaded subtitle file will be renamed after the release directory or file.
+**Other files on your computer will not be modified in any way (except when a subtitle file with the same name already exists - then it will be overwritten)**!
     ```
     Nr      Rating  Votes	Hearing impaired
     (1)	    9	    16
@@ -39,7 +46,16 @@ Note: If there's only one release and/or subtitle available then it will be chos
 
 4. For help and available command line arguments:
     ```
-    ./sub_dl -h 
+    user@home-pc:~/sub_dl$ ./sub_dl.py -h
+    usage: sub_dl.py [-h] [-c] [-a] [-w]
+
+    sub-dl: Subscene subtitle downloader.
+
+    optional arguments:
+      -h, --help    show this help message and exit
+      -c, --config  configure your media directory and subtitle language
+      -a, --auto    automatically choose best-rated non hearing-impaired subtitle
+      -w, --watch   launch VLC after downloading subtitles
     ```
 
 Enjoy!
