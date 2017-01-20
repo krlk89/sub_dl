@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-"""Download subtitles from Subscene (https://subscene.com)."""
+"""Download subtitles from Subscene (https://subscene.com).
+   Author: https://github.com/krlk89/sub-dl
+"""
 
 import config
 import logger
@@ -18,7 +20,7 @@ except ImportError:
 
 def parse_arguments():
     """Parse command line arguments. All are optional."""
-    parser = argparse.ArgumentParser(description = "sub-dl: Subscene subtitle downloader.")
+    parser = argparse.ArgumentParser(description = "sub_dl: Subscene subtitle downloader.")
     parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
     parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
     parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
@@ -36,7 +38,7 @@ def check_media_dir(media_dir):
             and x.suffix not in sub_extensions]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
-    
+        
     for nr, release in enumerate(dirs, 1):
         print(" ({})  {}".format(nr, release.name))
         
@@ -88,7 +90,7 @@ def find_subs(search_name, lang):
     """
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
     
-    for table_row in soup_link.find_all("tr")[1:]: # Skip first
+    for table_row in soup_link.find_all("tr")[1:]: # First entry is not a subtitle
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
         language, release = map(str.strip, [language.text, release.text])
