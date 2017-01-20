@@ -144,12 +144,15 @@ def download_sub(sub_zip, sub_link):
 
 def unpack_sub(sub_zip, download_dir, release_name):
     """Unzip subtitle .zip file."""
+    sub_file = "{}/{}".format(download_dir, release_name)
+    
     with zipfile.ZipFile(sub_zip, "r") as zip:
-        sub_file = zip.namelist()[0]
-        if Path("{}/{}".format(download_dir, release_name)).exists():
+        new_sub_file = zip.namelist()[0]    
+        if Path(sub_file).exists():
             print("Previous subtitle file will be overwritten.")
+            Path(sub_file).unlink()
         zip.extractall(str(download_dir))
-        Path("{}/{}".format(download_dir, sub_file)).rename("{}/{}".format(download_dir, release_name))
+        Path("{}/{}".format(download_dir, new_sub_file)).rename(sub_file)
 
 def main(arguments, media_dir, language):
     releases = check_media_dir(Path(media_dir))
