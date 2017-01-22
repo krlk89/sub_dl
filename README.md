@@ -1,6 +1,8 @@
 # sub_dl: Subscene subtitle downloader
 
-This script downloads subtitle files from [Subscene](https://subscene.com).
+sub_dl is a script that downloads subtitle files from [Subscene](https://subscene.com).
+
+**LEGAL NOTICE: As written in the [Subscene Terms of Use Agreement](https://subscene.com/site/legal-information) one is only allowed to use scripts like this for personal use!**
 
 [Python 3](https://www.python.org/) is required.
 
@@ -12,7 +14,7 @@ Easiest way to install both BeautifulSoup and Requests:
 
     user@home-pc:~/sub_dl$ pip install -r requirements.txt
     
-## Example:
+## How to use:
 1. On the first launch your input is needed for generating the configuration file. You can later change these preferences by launching the script as ./sub_dl.py -c.
     ```
     user@home-pc:~/sub_dl$ ./sub_dl.py

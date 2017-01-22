@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """Download subtitles from Subscene (https://subscene.com).
-   Author: https://github.com/krlk89/sub-dl
+   Author: https://github.com/krlk89/sub_dl
 """
 
 import config
-import logger
+import logger # TODO
 from pathlib import Path
 import argparse
 import operator
@@ -32,7 +32,7 @@ def check_media_dir(media_dir):
     sub_extensions = (".sub", ".idx", ".srt")
     
     print("Checking media directory: {}".format(media_dir))
-    # Files and subdirs in media dir
+    # Files and release dirs in media dir
     dirs = [x for x in media_dir.iterdir()
             if x.name.count(".") > 2
             and x.suffix not in sub_extensions]
