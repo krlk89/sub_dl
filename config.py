@@ -2,6 +2,8 @@ import configparser
 
 def create_config(path):
     """Create a config file."""
+    path = str(path)
+    
     config = configparser.ConfigParser()
     config.add_section("Settings")
     directory = input("Type your media directory: ")
@@ -14,6 +16,8 @@ def create_config(path):
             
 def read_config(path):
     """Read configuration file."""
+    path = str(path)
+    
     config = configparser.ConfigParser()
     config.read(path)
     

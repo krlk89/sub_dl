@@ -6,10 +6,11 @@
 
 import config
 import logger # TODO
-from pathlib import Path
 import argparse
-import operator
+import os
 import sys
+from pathlib import Path
+import operator
 import zipfile
 import subprocess
 try:
@@ -197,10 +198,12 @@ def main(arguments, media_dir, language):
 
 if __name__ == "__main__":
     args = parse_arguments()
-    settings_file = "settings.ini"
+    settings = "settings.ini"
+    script_dir = Path(__file__).parent
+    settings_file = script_dir.joinpath(settings)
     
-    if not Path(settings_file).is_file() or args.config:
+    if not settings_file.is_file() or args.config:
         config.create_config(settings_file)
     
-    media_dir, language = config.read_config(settings_file)       
+    media_dir, language = config.read_config(settings_file)
     main(args, media_dir, language)
