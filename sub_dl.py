@@ -82,7 +82,7 @@ def get_sub_rating(sub_link):
         
     return -1, -1
 
-def find_subs(search_name, lang):
+def find_subs(search_name, lang, fallback):
     """Return list of lists for subtitle link and info.
        0 - Subtitle page link
        1 - Rating
@@ -95,7 +95,10 @@ def find_subs(search_name, lang):
         sub_info = table_row.find_all("td", ["a1", "a41"]) # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
         language, release = map(str.strip, [language.text, release.text])
-
+        
+        if fallback: #TODO: print release name when in fallback mode.
+            search_name = release
+        
         if language.lower() == lang.lower() and release.lower() == search_name.lower():
             subtitle_link = sub_info[0].a.get("href")
             
@@ -173,13 +176,11 @@ def main(arguments, media_dir, language):
               
         search_name = check_release_tag(release_name)
         print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name, language)
+        subtitles = find_subs(search_name, language, False)
         chosen_sub = show_available_subtitles(subtitles, arguments.auto)
-        if not chosen_sub and release == dirs[-1]:
-            sys.exit("No subtitles for {} found. Exited.".format(search_name))
-        elif not subtitles:
-            print("No subtitles for {} found. Continuing search.".format(search_name))
-            continue
+        if not chosen_sub: #Fallback (list all available releases/subs)
+            subtitles = find_subs(search_name, language, True)
+            chosen_sub = show_available_subtitles(subtitles, arguments.auto)
             
         dl_link = get_download_link(chosen_sub)
         sub_link = requests.get("https://subscene.com/{}".format(dl_link))
