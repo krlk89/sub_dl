@@ -1,8 +1,8 @@
 # sub_dl: Subscene subtitle downloader
 
-sub_dl is a script that downloads subtitle files from [Subscene](https://subscene.com).
+sub_dl is a command-line tool that searches and downloads subtitles from [Subscene](https://subscene.com).
 
-**LEGAL NOTICE: As written in the [Subscene Terms of Use Agreement](https://subscene.com/site/legal-information) one is only allowed to use scripts like this for personal use!**
+**LEGAL NOTICE: As written in the [Subscene Terms of Use Agreement](https://subscene.com/site/legal-information) one is only allowed to use tools like this (scrapers) for personal use!**
 
 [Python 3](https://www.python.org/) is required.
 
@@ -12,12 +12,12 @@ sub_dl is a script that downloads subtitle files from [Subscene](https://subscen
 
 Easiest way to install both BeautifulSoup and Requests:
 
-    user@home-pc:~/sub_dl$ pip install -r requirements.txt
+    pip install -r requirements.txt
     
 ## How to use:
 1. On the first launch your input is needed for generating the configuration file. You can later change these preferences by launching the script as ./sub_dl.py -c.
     ```
-    user@home-pc:~/sub_dl$ ./sub_dl.py
+    ./sub_dl.py
     Type your media directory: /home/user/Downloads
     Type your preferred subtitle language (e.g. English): English
     ```
@@ -36,19 +36,19 @@ Easiest way to install both BeautifulSoup and Requests:
 Downloaded subtitle file will be renamed after the release directory or file.
 **Other files on your computer will not be modified in any way (except when a subtitle file with the same name already exists - then it will be overwritten)**!
     ```
-    Nr      Rating  Votes	Hearing impaired
+    Nr      Rating  Votes	H-i
     (1)	    9	    16
     (2)	    N/A
     (3)	    10	    16	    X
     Choose a subtitle: 3
     Done.
-    user@home-pc:~/sub_dl$
     ```
 Note: If there's only one release and/or subtitle available then it will be chosen automatically.
+If no subtitles are found for the specific release, all available releases will be shown as a fallback.
 
 4. For help and available command line arguments:
     ```
-    user@home-pc:~/sub_dl$ ./sub_dl.py -h
+    ./sub_dl.py -h
     usage: sub_dl.py [-h] [-c] [-a] [-w]
 
     sub-dl: Subscene subtitle downloader.
