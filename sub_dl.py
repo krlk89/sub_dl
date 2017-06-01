@@ -10,6 +10,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+import re
 import operator
 import zipfile
 import subprocess
@@ -28,6 +29,15 @@ def parse_arguments():
     parser.add_argument("-w", "--watch", action="store_true", help="launch VLC after downloading subtitles")
 
     return parser.parse_args()
+
+
+def is_tv_series(release_name):
+    """Check if release is a tv show. If yes then fallback search shows only subtitles for the right episode."""
+    match = re.search("\.S\d{2}E\d{2}\.", release_name, re.IGNORECASE)
+    if match:
+        return match.group().lower()
+    
+    return ""
 
 
 def check_media_dir(media_dir):
@@ -96,6 +106,7 @@ def find_subs(search_name, lang, fallback):
        2 - Vote count
        3 - Non-HI = 1, HI = 0
     """
+    is_tv = is_tv_series(search_name)
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
 
     for table_row in soup_link.find_all("tr")[1:]:  # First entry is not a subtitle
@@ -106,19 +117,19 @@ def find_subs(search_name, lang, fallback):
         if fallback:
             search_name = release
 
-        if language.lower() == lang.lower() and release.lower() == search_name.lower():
+        if language.lower() == lang.lower() and release.lower() == search_name.lower() and is_tv in release.lower():
             subtitle_link = sub_info[0].a.get("href")
 
             rating, vote_count = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
-                yield [subtitle_link, rating, vote_count, 0, release]  # HI sub
+                yield [subtitle_link, rating, vote_count, "X", release]  # HI sub
             else:
-                yield [subtitle_link, rating, vote_count, 1, release]  # Non-HI sub
+                yield [subtitle_link, rating, vote_count, "", release]  # Non-HI sub
 
 
 def show_available_subtitles(subtitles, args_auto, fallback):
     """Print all available subtitles and choose one from them."""
-    subtitles = sorted(subtitles, key=operator.itemgetter(3, 1, 2), reverse=True)
+    subtitles = sorted(subtitles, key=operator.itemgetter(3, 1, 2))
     if not subtitles:
         return None
 
@@ -131,16 +142,10 @@ def show_available_subtitles(subtitles, args_auto, fallback):
         if sub[1] == -1:
             sub[1], sub[2] = "N/A", ""
 
-        if fallback:
-            if sub[3] == 1:
-                print(" ({})\t{}\t{}\t\t{}".format(nr, sub[1], sub[2], sub[4]))
-            else:
-                print(" ({})\t{}\t{}\tX\t{}".format(nr, sub[1], sub[2], sub[4]))
-        else:
-            if sub[3] == 1:
-                print(" ({})\t{}\t{}".format(nr, sub[1], sub[2]))
-            else:
-                print(" ({})\t{}\t{}\tX".format(nr, sub[1], sub[2]))
+        if not fallback:
+            sub[4] = ""
+            
+        print(" ({})\t{}\t{}\t{}\t{}".format(nr, sub[1], sub[2], sub[3], sub[4]))
 
     if args_auto or len(subtitles) == 1:
         print("Subtitle nr 1 chosen automatically.")
