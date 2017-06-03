@@ -3,6 +3,7 @@
 """Download subtitles from Subscene (https://subscene.com).
    Author: https://github.com/krlk89/sub_dl
 """
+import time
 
 import config
 import logger  # TODO
@@ -47,11 +48,11 @@ def check_media_dir(media_dir):
     print("Checking media directory: {}".format(media_dir))
     # Files and release dirs in media dir
     dirs = [x for x in media_dir.iterdir()
-            if x.name.count(".") > 2
-            and x.suffix not in sub_extensions]
+            if x.suffix not in sub_extensions]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
-
+    
+    dirs.sort()
     for nr, release in enumerate(dirs, 1):
         print(" ({})  {}".format(nr, release.name))
 
@@ -60,17 +61,19 @@ def check_media_dir(media_dir):
 
 def choose_release(dirs, choice):
     """Choose release(s) for which you want to download subtitles."""
+    dir_count = len(dirs)
+    
     if "-" in choice:
         start, end = map(int, choice.split("-"))
     else:
         start, end = map(int, [choice, choice])
 
-    if start <= 0 or end <= 0 or start > len(dirs):
+    if start == 0 or start > dir_count:
         sys.exit("You chose a non-existing release. Exited.")
-    if end > len(dirs):
-        end = len(dirs)
+    if end > dir_count:
+        end = dir_count
 
-    return dirs[start - 1: end]
+    return dirs[start - 1:end]
 
 
 def get_soup(link):
@@ -104,32 +107,32 @@ def find_subs(search_name, lang, fallback):
        0 - Subtitle page link
        1 - Rating
        2 - Vote count
-       3 - Non-HI = 1, HI = 0
+       3 - H-i = "X", Non H-i = "Y" (for correct sorting)
+       4 - Release name (for fallback search results)
     """
+    search_name = search_name.replace(" ", ".")  # 
     is_tv = is_tv_series(search_name)
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
-
+    
     for table_row in soup_link.find_all("tr")[1:]:  # First entry is not a subtitle
+        
         sub_info = table_row.find_all("td", ["a1", "a41"])  # a41 == Hearing impaired
         language, release = sub_info[0].find_all("span")
         language, release = map(str.strip, [language.text, release.text])
-
-        if fallback:
-            search_name = release
-
-        if language.lower() == lang.lower() and release.lower() == search_name.lower() and is_tv in release.lower():
+        
+        if language.lower() == lang.lower() and (release.lower() == search_name.lower() or fallback) and is_tv in release.lower():
             subtitle_link = sub_info[0].a.get("href")
 
             rating, vote_count = get_sub_rating(subtitle_link)
             if len(sub_info) == 2:
-                yield [subtitle_link, rating, vote_count, "X", release]  # HI sub
+                yield [subtitle_link, rating, vote_count, "X", release]  # H-i sub
             else:
-                yield [subtitle_link, rating, vote_count, "", release]  # Non-HI sub
+                yield [subtitle_link, rating, vote_count, "Y", release]  # Non H-i sub
 
 
 def show_available_subtitles(subtitles, args_auto, fallback):
     """Print all available subtitles and choose one from them."""
-    subtitles = sorted(subtitles, key=operator.itemgetter(3, 1, 2))
+    subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
     if not subtitles:
         return None
 
@@ -138,12 +141,13 @@ def show_available_subtitles(subtitles, args_auto, fallback):
     else:
         print(" Nr\tRating\tVotes\tH-i")
 
-    for nr, sub in enumerate(subtitles, start=1):
-        if sub[1] == -1:
-            sub[1], sub[2] = "N/A", ""
-
+    for nr, sub in enumerate(subtitles, start = 1):
         if not fallback:
             sub[4] = ""
+        if sub[1] == -1:
+            sub[1], sub[2] = "N/A", ""
+        if sub[3] == "Y":
+            sub[3] = ""
             
         print(" ({})\t{}\t{}\t{}\t{}".format(nr, sub[1], sub[2], sub[3], sub[4]))
 
@@ -208,6 +212,7 @@ def main(arguments, media_dir, language):
 
         if not chosen_sub:  # Fallback (list all available releases/subs)
             print("No subtitles for {} found. Showing all subtitles.".format(search_name))
+            time.sleep(1)  # 
             subtitles = find_subs(search_name, language, True)
             chosen_sub = show_available_subtitles(subtitles, arguments.auto, True)
 
@@ -228,7 +233,7 @@ def main(arguments, media_dir, language):
             try:
                 subprocess.call(["vlc", str(release)])
             except FileNotFoundError:
-                sys.exit("VLC not installed or you are not using a Linux based system.")
+                sys.exit("VLC is not installed or you are not using a Linux based system.")
 
     sys.exit("Done.")
 
