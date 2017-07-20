@@ -7,6 +7,7 @@ sub_dl is a command-line tool that searches and downloads subtitles from [Subsce
 [Python 3](https://www.python.org/) is required.
 
 ## Dependencies:
+* [fake-useragent](https://pypi.python.org/pypi/fake-useragent)
 * [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 * [Requests](http://docs.python-requests.org/en/master/)
 
@@ -15,11 +16,10 @@ Easiest way to install both BeautifulSoup and Requests:
     pip install -r requirements.txt
     
 ## How to use:
-1. On the first launch your input is needed for generating the configuration file. You can later change these preferences by launching the script as ./sub_dl.py -c.
+1. On the first launch your input is needed for generating the configuration file. You can later change the preference by launching the script as ./sub_dl.py -c.
     ```
     ./sub_dl.py
     Type your media directory: /home/user/Downloads
-    Type your preferred subtitle language (e.g. English): English
     ```
 
 2. Choose movies/tv shows for which you want to download subtitles. You can choose a single release (*e.g.* 1) or a range of releases (*e.g.* 1-2).
@@ -56,6 +56,7 @@ If no subtitles are found for the specific release, all available releases will 
     optional arguments:
       -h, --help    show this help message and exit
       -c, --config  configure your media directory and subtitle language
+      -l LANGUAGE, --language LANGUAGE  specify desired subtitle language (overrules default which is English)
       -a, --auto    automatically choose best-rated non hearing-impaired subtitle
       -w, --watch   launch VLC after downloading subtitles
     ```

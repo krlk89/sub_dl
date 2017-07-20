@@ -3,8 +3,8 @@
 """Download subtitles from Subscene (https://subscene.com).
    Author: https://github.com/krlk89/sub_dl
 """
-import time
 
+import time
 import config
 import logger  # TODO
 import argparse
@@ -16,6 +16,7 @@ import operator
 import zipfile
 import subprocess
 try:
+    from fake_useragent import UserAgent
     from bs4 import BeautifulSoup
     import requests
 except ImportError:
@@ -24,10 +25,11 @@ except ImportError:
 
 def parse_arguments():
     """Parse command line arguments. All are optional."""
-    parser = argparse.ArgumentParser(description="sub_dl: Subscene subtitle downloader.")
-    parser.add_argument("-c", "--config", action="store_true", help="configure your media directory and subtitle language")
-    parser.add_argument("-a", "--auto", action="store_true", help="automatically choose best-rated non hearing-impaired subtitle")
-    parser.add_argument("-w", "--watch", action="store_true", help="launch VLC after downloading subtitles")
+    parser = argparse.ArgumentParser(description = "sub_dl: Subscene subtitle downloader.")
+    parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
+    parser.add_argument("-l", "--language", help = "specify desired subtitle language (overrules default which is English)", type = str, default = "English")
+    parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
+    parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
 
     return parser.parse_args()
 
@@ -59,8 +61,10 @@ def check_media_dir(media_dir):
     return dirs
 
 
-def choose_release(dirs, choice):
+#TODO: comma separated choosing (e.g. 1,3,5,10)
+def choose_release(dirs):
     """Choose release(s) for which you want to download subtitles."""
+    choice = input("Choose a release: ")
     dir_count = len(dirs)
     
     if "-" in choice:
@@ -78,7 +82,7 @@ def choose_release(dirs, choice):
 
 def get_soup(link):
     """Return BeautifulSoup object."""
-    r = requests.get(link)
+    r = requests.get(link, user_agent)
 
     return BeautifulSoup(r.text, "html.parser")
 
@@ -94,7 +98,7 @@ def check_release_tag(release_name):
 def get_sub_rating(sub_link):
     """Return subtitle rating and vote count."""
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
-    rating = soup_link.find("div", class_="rating")
+    rating = soup_link.find("div", class_ = "rating")
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
         return int(rating.span.text), int(vote_count)
@@ -167,37 +171,54 @@ def get_download_link(sub_link):
     """Return subtitle download link for the chosen subtitle."""
     soup_link = get_soup("https://subscene.com{}".format(sub_link))
 
-    return soup_link.find(id="downloadButton").get("href")
+    return soup_link.find(id = "downloadButton").get("href")
 
 
 def download_sub(sub_zip, sub_link):
     """Download subtitle .zip file."""
     with open(sub_zip, 'wb') as f:
-        for chunk in sub_link.iter_content(chunk_size=1024):
+        for chunk in sub_link.iter_content(chunk_size = 1024):
             if chunk:
                 f.write(chunk)
 
 
-def unpack_sub(sub_zip, download_dir, release_name):
-    """Unzip subtitle .zip file."""
-    sub_file = "{}/{}".format(download_dir, release_name)
-
+def unpack_sub(sub_zip, sub_file, download_dir):
+    """Unpack compressed subtitle file."""
     with zipfile.ZipFile(sub_zip, "r") as zip:
         new_sub_file = zip.namelist()[0]
+        
         if Path(sub_file).exists():
             print("Previous subtitle file will be overwritten.")
             Path(sub_file).unlink()
+            
         zip.extractall(str(download_dir))
-        Path("{}/{}".format(download_dir, new_sub_file)).rename(sub_file)
+        
+        return new_sub_file
+        
+
+# TODO: Check if there's multiple files in the .zip
+# handle other possible extensions
+def handle_sub(sub_zip, download_dir, release_name):
+    """Handle downloaded subtitle file."""
+    sub_file = "{}/{}".format(download_dir, release_name)
+    
+    if zipfile.is_zipfile(sub_zip):
+        new_sub_file = unpack_sub(sub_zip, sub_file, download_dir) 
+    else:
+        new_sub_file = sub_zip
+                
+    Path("{}/{}".format(download_dir, new_sub_file)).rename(sub_file)
 
 
-def main(arguments, media_dir, language):
+def main(arguments, media_dir):
+    global user_agent
+    user_agent = UserAgent().random
+
     releases = check_media_dir(Path(media_dir))
     if len(releases) == 1:
         dirs = releases
     else:
-        choice = input("Choose a release: ")
-        dirs = choose_release(releases, choice)
+        dirs = choose_release(releases)
 
     for release in dirs:
         if release.is_dir():
@@ -206,14 +227,14 @@ def main(arguments, media_dir, language):
             download_dir, release_name = media_dir, release.stem  # Removes extension
 
         search_name = check_release_tag(release_name)
-        print("\nSearching subtitles for {}".format(search_name))
-        subtitles = find_subs(search_name, language, False)
+        print("\nSearching {} subtitles for {}".format(arguments.language, search_name))
+        subtitles = find_subs(search_name, arguments.language, False)
         chosen_sub = show_available_subtitles(subtitles, arguments.auto, False)
 
         if not chosen_sub:  # Fallback (list all available releases/subs)
             print("No subtitles for {} found. Showing all subtitles.".format(search_name))
             time.sleep(1)  # 
-            subtitles = find_subs(search_name, language, True)
+            subtitles = find_subs(search_name, arguments.language, True)
             chosen_sub = show_available_subtitles(subtitles, arguments.auto, True)
 
             if not chosen_sub and release == dirs[-1]:
@@ -223,10 +244,10 @@ def main(arguments, media_dir, language):
                 continue
 
         dl_link = get_download_link(chosen_sub)
-        sub_link = requests.get("https://subscene.com/{}".format(dl_link))
+        sub_link = requests.get("https://subscene.com/{}".format(dl_link), user_agent)
         sub_zip = "{}/subtitle.zip".format(download_dir)
         download_sub(sub_zip, sub_link)
-        unpack_sub(sub_zip, download_dir, "{}.srt".format(release_name))
+        handle_sub(sub_zip, download_dir, "{}.srt".format(release_name))
         Path(sub_zip).unlink()  # Deletes subtitle.zip
 
         if arguments.watch and release.is_file() and len(dirs) == 1:
@@ -239,6 +260,8 @@ def main(arguments, media_dir, language):
 
 
 if __name__ == "__main__":
+    print("For information about available command line arguments launch the script with -h (--help) argument.\n")
+    
     args = parse_arguments()
     settings = "settings.ini"
     script_dir = Path(__file__).parent
@@ -247,6 +270,6 @@ if __name__ == "__main__":
     if not settings_file.is_file() or args.config:
         config.create_config(settings_file)
 
-    media_dir, language = config.read_config(settings_file)
-    main(args, media_dir, language)
+    media_dir = config.read_config(settings_file)
+    main(args, media_dir)
 
