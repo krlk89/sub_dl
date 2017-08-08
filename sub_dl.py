@@ -6,7 +6,7 @@
 
 import time
 import config
-import logger  # TODO
+#import logger  # TODO
 import argparse
 import os
 import sys
@@ -61,7 +61,6 @@ def check_media_dir(media_dir):
     return dirs
 
 
-#TODO: comma separated choosing (e.g. 1,3,5,10)
 def choose_release(dirs):
     """Choose release(s) for which you want to download subtitles."""
     choice = input("Choose a release: ")
@@ -69,6 +68,16 @@ def choose_release(dirs):
     
     if "-" in choice:
         start, end = map(int, choice.split("-"))
+    elif "," in choice:
+        chosen_dirs = []
+        choices = map(int, choice.split(","))
+        for i in choices:
+            try:
+                chosen_dirs.append(dirs[i-1])
+            except IndexError:
+                continue
+            
+        return chosen_dirs
     else:
         start, end = map(int, [choice, choice])
 
@@ -196,8 +205,7 @@ def unpack_sub(sub_zip, sub_file, download_dir):
         return new_sub_file
         
 
-# TODO: Check if there's multiple files in the .zip
-# handle other possible extensions
+# TODO: Check if there's multiple files in the .zip?
 def handle_sub(sub_zip, download_dir, release_name):
     """Handle downloaded subtitle file."""
     sub_file = "{}/{}".format(download_dir, release_name)
