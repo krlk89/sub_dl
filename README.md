@@ -22,12 +22,14 @@ Easiest way to install both BeautifulSoup and Requests:
     Type your media directory: /home/user/Downloads
     ```
 
-2. Choose movies/tv shows for which you want to download subtitles. You can choose a single release (*e.g.* 1) or a range of releases (*e.g.* 1-2).
+2. Choose movies/tv shows for which you want to download subtitles. You can choose a single release (*e.g.* 1), multiple releases (*e.g.* 1,3) or a range of releases (*e.g.* 1-4).
     ```
     Checking media directory: /home/user/Downloads
-     (1)  Sherlock.The.Abominable.Bride.2016.720p.BluRay.H264.AAC-RARBG
-     (2)  sherlock.4x01.repack_720p_hdtv_x264-fov.mkv
-    Choose a release: 1
+     (1)  Sherlock.S04E02.WEBRip.XviD-FUM
+     (2)  Sherlock.S04E03.HDTV.x264-FLEET
+     (3)  Sherlock.The.Abominable.Bride.2016.720p.BluRay.H264.AAC-RARBG
+     (4)  sherlock.4x01.repack_720p_hdtv_x264-fov.mkv
+    Choose a release: 3
 
     Searching subtitles for Sherlock.The.Abominable.Bride.2016.720p.BluRay.H264.AAC-RARBG
     ```
