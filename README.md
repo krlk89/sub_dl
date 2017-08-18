@@ -11,14 +11,16 @@ sub_dl is a command-line tool that searches and downloads subtitles from [Subsce
 * [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 * [Requests](http://docs.python-requests.org/en/master/)
 
-Easiest way to install both BeautifulSoup and Requests:
+Easiest way to install all the dependencies:
 
     pip install -r requirements.txt
     
 ## How to use:
-1. On the first launch your input is needed for generating the configuration file. You can later change the preference by launching the script as ./sub_dl.py -c.
+1. On the first launch your input is needed for generating the configuration file. You can later change this preference by launching the script as ./sub_dl.py -c.
     ```
     ./sub_dl.py
+    For information about available command line arguments launch the script with -h (--help) argument.
+    
     Type your media directory: /home/user/Downloads
     ```
 
@@ -31,7 +33,7 @@ Easiest way to install both BeautifulSoup and Requests:
      (4)  sherlock.4x01.repack_720p_hdtv_x264-fov.mkv
     Choose a release: 3
 
-    Searching subtitles for Sherlock.The.Abominable.Bride.2016.720p.BluRay.H264.AAC-RARBG
+    Searching English subtitles for Sherlock.The.Abominable.Bride.2016.720p.BluRay.H264.AAC-RARBG
     ```
 
 3. Choose one from subtitles that are suitable for the selected release. Hearing impaired subtitles are marked with an X.
@@ -51,7 +53,7 @@ If no subtitles are found for the specific release, all available releases will 
 4. For help and available command line arguments:
     ```
     ./sub_dl.py -h
-    usage: sub_dl.py [-h] [-c] [-a] [-w]
+    usage: sub_dl.py [-h] [-c] [-l LANGUAGE] [-a] [-w]
 
     sub-dl: Subscene subtitle downloader.
 
