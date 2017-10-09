@@ -6,7 +6,7 @@
 
 import time
 import config
-#import logger  # TODO
+#import logger # TODO
 import argparse
 import os
 import sys
@@ -27,15 +27,16 @@ def parse_arguments():
     """Parse command line arguments. All are optional."""
     parser = argparse.ArgumentParser(description = "sub_dl: Subscene subtitle downloader.")
     parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
-    parser.add_argument("-l", "--language", help = "specify desired subtitle language (overrules default which is English)", type = str, default = "English")
+    parser.add_argument("-l", "--language", type = str, default = "english", help = "specify desired subtitle language (overrules default which is English)")
     parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
     parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
 
     return parser.parse_args()
 
 
-def is_tv_series(release_name):
-    """Check if release is a tv show. If yes then fallback search shows only subtitles for the right episode."""
+def tv_series_or_movie(release_name):
+    """Check if release is a tv show. If yes then fallback search shows only subtitles for the right episode.
+    Return empty string for movies so that comparison works in find_subs function."""
     match = re.search("\.S\d{2}E\d{2}\.", release_name, re.IGNORECASE)
     if match:
         return match.group().lower()
@@ -49,8 +50,7 @@ def check_media_dir(media_dir):
 
     print("Checking media directory: {}".format(media_dir))
     # Files and release dirs in media dir
-    dirs = [x for x in media_dir.iterdir()
-            if x.suffix not in sub_extensions]
+    dirs = [x for x in media_dir.iterdir() if x.suffix not in sub_extensions]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
     
@@ -67,22 +67,25 @@ def choose_release(dirs):
     dir_count = len(dirs)
     
     if "-" in choice:
-        start, end = map(int, choice.split("-"))
+        try:
+            start, end = map(int, choice.split("-"))
+        except ValueError:
+            return choose_release(dirs)
     elif "," in choice:
-        chosen_dirs = []
-        choices = map(int, choice.split(","))
-        for i in choices:
-            try:
-                chosen_dirs.append(dirs[i-1])
-            except IndexError:
-                continue
-            
-        return chosen_dirs
+        try:
+            choices = (int(i) - 1 for i in choice.split(",") if int(i) <= dir_count)
+        except ValueError:
+            return choose_release(dirs)
+
+        return [dirs[i] for i in choices]
     else:
-        start, end = map(int, [choice, choice])
+        try:
+            start, end = map(int, [choice, choice])
+        except ValueError:
+            return choose_release(dirs)
 
     if start == 0 or start > dir_count:
-        sys.exit("You chose a non-existing release. Exited.")
+        return choose_release(dirs)
     if end > dir_count:
         end = dir_count
 
@@ -97,8 +100,8 @@ def get_soup(link):
 
 
 def check_release_tag(release_name):
-    """Check for a release tag and remove it if it exists."""
-    if release_name[-1] == "]":  # Possible release tag (e.g. [ettv])
+    """Check for a release tag (e.g. [ettv]) and remove it (for searching) if it exists."""
+    if release_name[-1] == "]":
         return release_name.split("[")[0]
 
     return release_name
@@ -115,7 +118,7 @@ def get_sub_rating(sub_link):
     return -1, -1
 
 
-def find_subs(search_name, lang, fallback):
+def find_subs(search_name, language, fallback):
     """Return list of lists for subtitle link and info.
        0 - Subtitle page link
        1 - Rating
@@ -123,17 +126,17 @@ def find_subs(search_name, lang, fallback):
        3 - H-i = "X", Non H-i = "Y" (for correct sorting)
        4 - Release name (for fallback search results)
     """
-    search_name = search_name.replace(" ", ".")  # 
-    is_tv = is_tv_series(search_name)
+    search_name = search_name.replace(" ", ".").lower()  # Local file or dir name
+    tv_or_movie = tv_series_or_movie(search_name)
     soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
     
     for table_row in soup_link.find_all("tr")[1:]:  # First entry is not a subtitle
         
         sub_info = table_row.find_all("td", ["a1", "a41"])  # a41 == Hearing impaired
-        language, release = sub_info[0].find_all("span")
-        language, release = map(str.strip, [language.text, release.text])
+        sub_language, release = sub_info[0].find_all("span")
+        sub_language, release = map(str.strip, [sub_language.text, release.text])
         
-        if language.lower() == lang.lower() and (release.lower() == search_name.lower() or fallback) and is_tv in release.lower():
+        if language == sub_language.lower() and (search_name in release.lower() or fallback) and tv_or_movie in release.lower():
             subtitle_link = sub_info[0].a.get("href")
 
             rating, vote_count = get_sub_rating(subtitle_link)
@@ -168,12 +171,12 @@ def show_available_subtitles(subtitles, args_auto, fallback):
         print("Subtitle nr 1 chosen automatically.")
         return subtitles[0][0]
     else:
-        try:
-            choice = int(input("Choose a subtitle: ")) - 1
-            return subtitles[choice][0]
-        except (IndexError, ValueError):
-            print("You chose a non-existing subtitle. Subtitle nr 1 chosen instead.")
-            return subtitles[0][0]
+        while True:
+            try:
+                choice = int(input("Choose a subtitle: ")) - 1
+                return subtitles[choice][0]
+            except (IndexError, ValueError):
+                print("You chose a non-existing subtitle. Choose again.")
 
 
 def get_download_link(sub_link):
@@ -194,6 +197,8 @@ def download_sub(sub_zip, sub_link):
 def unpack_sub(sub_zip, sub_file, download_dir):
     """Unpack compressed subtitle file."""
     with zipfile.ZipFile(sub_zip, "r") as zip:
+        if len(zip.namelist()) > 1:
+            print("Multiple files in the archive. First file will be chosen.")
         new_sub_file = zip.namelist()[0]
         
         if Path(sub_file).exists():
@@ -205,7 +210,6 @@ def unpack_sub(sub_zip, sub_file, download_dir):
         return new_sub_file
         
 
-# TODO: Check if there's multiple files in the .zip?
 def handle_sub(sub_zip, download_dir, release_name):
     """Handle downloaded subtitle file."""
     sub_file = "{}/{}".format(download_dir, release_name)
@@ -236,13 +240,13 @@ def main(arguments, media_dir):
 
         search_name = check_release_tag(release_name)
         print("\nSearching {} subtitles for {}".format(arguments.language, search_name))
-        subtitles = find_subs(search_name, arguments.language, False)
+        subtitles = find_subs(search_name, arguments.language.lower(), False)
         chosen_sub = show_available_subtitles(subtitles, arguments.auto, False)
 
         if not chosen_sub:  # Fallback (list all available releases/subs)
             print("No subtitles for {} found. Showing all subtitles.".format(search_name))
             time.sleep(1)  # 
-            subtitles = find_subs(search_name, arguments.language, True)
+            subtitles = find_subs(search_name, arguments.language.lower(), True)
             chosen_sub = show_available_subtitles(subtitles, arguments.auto, True)
 
             if not chosen_sub and release == dirs[-1]:

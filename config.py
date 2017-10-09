@@ -1,3 +1,7 @@
+"""Configuration file creation and reading for Subscene subtitle downloader (sub_dl)
+   Author: https://github.com/krlk89/sub_dl
+"""
+
 import configparser
 
 def create_config(path):
