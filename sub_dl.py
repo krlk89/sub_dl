@@ -6,6 +6,7 @@
 
 import time
 import config
+import difflib
 #import logger # TODO
 import argparse
 import os
@@ -26,9 +27,9 @@ except ImportError:
 def parse_arguments():
     """Parse command line arguments. All are optional."""
     parser = argparse.ArgumentParser(description = "sub_dl: Subscene subtitle downloader.")
-    parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory and subtitle language")
-    parser.add_argument("-l", "--language", type = str, default = "english", help = "specify desired subtitle language (overrules default which is English)")
-    parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitle")
+    parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory")
+    parser.add_argument("-l", "--language", type = str, default = "english", help = "specify desired subtitles language (overrules default which is English)")
+    parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitles")
     parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
 
     return parser.parse_args()
@@ -135,8 +136,9 @@ def find_subs(search_name, language, fallback):
         sub_info = table_row.find_all("td", ["a1", "a41"])  # a41 == Hearing impaired
         sub_language, release = sub_info[0].find_all("span")
         sub_language, release = map(str.strip, [sub_language.text, release.text])
+        search_distance = difflib.SequenceMatcher(None, search_name, release.lower()).ratio()
         
-        if language == sub_language.lower() and (search_name in release.lower() or fallback) and tv_or_movie in release.lower():
+        if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance > 0.9)) and tv_or_movie in release.lower():
             subtitle_link = sub_info[0].a.get("href")
 
             rating, vote_count = get_sub_rating(subtitle_link)
@@ -224,7 +226,11 @@ def handle_sub(sub_zip, download_dir, release_name):
 
 def main(arguments, media_dir):
     global user_agent
-    user_agent = UserAgent().random
+    try:
+        user_agent = UserAgent().random
+    except:
+        user_agent = "# Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:15.0) Gecko/20100101 Firefox/15.0.1"
+    print(user_agent)
 
     releases = check_media_dir(Path(media_dir))
     if len(releases) == 1:
@@ -239,7 +245,7 @@ def main(arguments, media_dir):
             download_dir, release_name = media_dir, release.stem  # Removes extension
 
         search_name = check_release_tag(release_name)
-        print("\nSearching {} subtitles for {}".format(arguments.language, search_name))
+        print("\nSearching {} subtitles for {}".format(arguments.language.capitalize(), search_name))
         subtitles = find_subs(search_name, arguments.language.lower(), False)
         chosen_sub = show_available_subtitles(subtitles, arguments.auto, False)
 
