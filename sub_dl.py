@@ -18,7 +18,7 @@ import zipfile
 import subprocess
 try:
     from fake_useragent import UserAgent
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, SoupStrainer
     import requests
 except ImportError:
     sys.exit("Missing dependencies. Type 'pip install -r requirements.txt' to install them.")
@@ -93,13 +93,6 @@ def choose_release(dirs):
     return dirs[start - 1:end]
 
 
-def get_soup(link):
-    """Return BeautifulSoup object."""
-    r = requests.get(link, user_agent)
-
-    return BeautifulSoup(r.text, "html.parser")
-
-
 def check_release_tag(release_name):
     """Check for a release tag (e.g. [ettv]) and remove it (for searching) if it exists."""
     if release_name[-1] == "]":
@@ -108,15 +101,19 @@ def check_release_tag(release_name):
     return release_name
 
 
-def get_sub_rating(sub_link):
+def get_sub_rating_and_dl_link(sub_link):
     """Return subtitle rating and vote count."""
-    soup_link = get_soup("https://subscene.com{}".format(sub_link))
-    rating = soup_link.find("div", class_ = "rating")
+    only_li = SoupStrainer("li", class_ = "clearfix")
+    r = requests.get("https://subscene.com{}".format(sub_link), user_agent)
+    soup = BeautifulSoup(r.text, "lxml", parse_only = only_li)
+    dl_link = soup.find(id = "downloadButton").get("href")
+    rating = soup.find("div", class_ = "rating")
+    
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
-        return int(rating.span.text), int(vote_count)
+        return dl_link, int(rating.span.text), int(vote_count)
 
-    return -1, -1
+    return dl_link, -1, -1
 
 
 def find_subs(search_name, language, fallback):
@@ -129,10 +126,12 @@ def find_subs(search_name, language, fallback):
     """
     search_name = search_name.replace(" ", ".").lower()  # Local file or dir name
     tv_or_movie = tv_series_or_movie(search_name)
-    soup_link = get_soup("https://subscene.com/subtitles/release?q={}".format(search_name))
     
-    for table_row in soup_link.find_all("tr")[1:]:  # First entry is not a subtitle
-        
+    only_tbody = SoupStrainer("tbody")
+    r = requests.get("https://subscene.com/subtitles/release?q={}".format(search_name), user_agent)
+    soup = BeautifulSoup(r.text, "lxml", parse_only = only_tbody)
+    
+    for table_row in soup.find_all("tr"):
         sub_info = table_row.find_all("td", ["a1", "a41"])  # a41 == Hearing impaired
         sub_language, release = sub_info[0].find_all("span")
         sub_language, release = map(str.strip, [sub_language.text, release.text])
@@ -141,11 +140,11 @@ def find_subs(search_name, language, fallback):
         if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance > 0.9)) and tv_or_movie in release.lower():
             subtitle_link = sub_info[0].a.get("href")
 
-            rating, vote_count = get_sub_rating(subtitle_link)
+            download_link, rating, vote_count = get_sub_rating_and_dl_link(subtitle_link)
             if len(sub_info) == 2:
-                yield [subtitle_link, rating, vote_count, "X", release]  # H-i sub
+                yield [download_link, rating, vote_count, "X", release]  # H-i sub
             else:
-                yield [subtitle_link, rating, vote_count, "Y", release]  # Non H-i sub
+                yield [download_link, rating, vote_count, "Y", release]  # Non H-i sub
 
 
 def show_available_subtitles(subtitles, args_auto, fallback):
@@ -179,13 +178,6 @@ def show_available_subtitles(subtitles, args_auto, fallback):
                 return subtitles[choice][0]
             except (IndexError, ValueError):
                 print("You chose a non-existing subtitle. Choose again.")
-
-
-def get_download_link(sub_link):
-    """Return subtitle download link for the chosen subtitle."""
-    soup_link = get_soup("https://subscene.com{}".format(sub_link))
-
-    return soup_link.find(id = "downloadButton").get("href")
 
 
 def download_sub(sub_zip, sub_link):
@@ -226,11 +218,7 @@ def handle_sub(sub_zip, download_dir, release_name):
 
 def main(arguments, media_dir):
     global user_agent
-    try:
-        user_agent = UserAgent().random
-    except:
-        user_agent = "# Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:15.0) Gecko/20100101 Firefox/15.0.1"
-    print(user_agent)
+    user_agent = UserAgent(fallback = "# Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:15.0) Gecko/20100101 Firefox/15.0.1").random
 
     releases = check_media_dir(Path(media_dir))
     if len(releases) == 1:
@@ -261,8 +249,7 @@ def main(arguments, media_dir):
                 print("No subtitles found. Continuing search.")
                 continue
 
-        dl_link = get_download_link(chosen_sub)
-        sub_link = requests.get("https://subscene.com/{}".format(dl_link), user_agent)
+        sub_link = requests.get("https://subscene.com/{}".format(chosen_sub), user_agent)
         sub_zip = "{}/subtitle.zip".format(download_dir)
         download_sub(sub_zip, sub_link)
         handle_sub(sub_zip, download_dir, "{}.srt".format(release_name))
