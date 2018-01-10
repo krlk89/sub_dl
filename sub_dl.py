@@ -38,7 +38,7 @@ def parse_arguments():
 def tv_series_or_movie(release_name):
     """Check if release is a tv show. If yes then fallback search shows only subtitles for the right episode.
     Return empty string for movies so that comparison works in find_subs function."""
-    match = re.search("\.S\d{2}E\d{2}\.", release_name, re.IGNORECASE)
+    match = re.search("\.S\d+E\d+\.", release_name, re.IGNORECASE)
     if match:
         return match.group().lower()
     
@@ -101,57 +101,68 @@ def check_release_tag(release_name):
     return release_name
 
 
-def get_sub_rating_and_dl_link(sub_link):
-    """Return subtitle rating and vote count."""
-    only_li = SoupStrainer("li", class_ = "clearfix")
-    r = requests.get("https://subscene.com{}".format(sub_link), user_agent)
-    soup = BeautifulSoup(r.text, "lxml", parse_only = only_li)
+def get_sub_info(sub_link):
+    """Return subtitle download link, rating, vote count and tag for hearing impaired."""
+    r = requests.get("https://subscene.com{}".format(sub_link), headers = {"user-agent": user_agent}, timeout = 10)
+    soup = BeautifulSoup(r.text, "lxml", parse_only = SoupStrainer("li", class_ = "clearfix"))
     dl_link = soup.find(id = "downloadButton").get("href")
     rating = soup.find("div", class_ = "rating")
+    hi = soup.find("span", class_ = "hearing-impaired")
+    
+    if hi:
+        hi_tag = "X"
+    else:
+        hi_tag = "Y"
     
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
-        return dl_link, int(rating.span.text), int(vote_count)
+        return dl_link, int(rating.span.text), int(vote_count), hi_tag
 
-    return dl_link, -1, -1
+    return dl_link, -1, -1, hi_tag
 
 
-def find_subs(search_name, language, fallback):
-    """Return list of lists for subtitle link and info.
-       0 - Subtitle page link
+def find_subs(search_name, language):
+    """Return list of lists for subtitle info.
+       0 - Download link
        1 - Rating
        2 - Vote count
-       3 - H-i = "X", Non H-i = "Y" (for correct sorting)
+       3 - Hearing-impaired tag (H-i = "X", Non H-i = "Y" (for correct sorting))
        4 - Release name (for fallback search results)
     """
+    fallback = True
+    sub_list = []
+    fallback_sub_list = []
     search_name = search_name.replace(" ", ".").lower()  # Local file or dir name
     tv_or_movie = tv_series_or_movie(search_name)
     
-    only_tbody = SoupStrainer("tbody")
-    r = requests.get("https://subscene.com/subtitles/release?q={}".format(search_name), user_agent)
-    soup = BeautifulSoup(r.text, "lxml", parse_only = only_tbody)
+    r = requests.get("https://subscene.com/subtitles/release?", params = {"q": search_name}, headers = {"user-agent": user_agent}, timeout = 10)
+    soup = BeautifulSoup(r.text, "lxml", parse_only = SoupStrainer("td", class_ = "a1"))
+    soup_data = soup.find_all("td")
     
-    for table_row in soup.find_all("tr"):
-        sub_info = table_row.find_all("td", ["a1", "a41"])  # a41 == Hearing impaired
-        sub_language, release = sub_info[0].find_all("span")
+    for subtitle in soup_data:
+        sub_language, release = subtitle.find_all("span")
         sub_language, release = map(str.strip, [sub_language.text, release.text])
-        search_distance = difflib.SequenceMatcher(None, search_name, release.lower()).ratio()
+        search_distance = difflib.SequenceMatcher(None, search_name, release.lower()).ratio() > 0.9
         
-        if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance > 0.9)) and tv_or_movie in release.lower():
-            subtitle_link = sub_info[0].a.get("href")
-
-            download_link, rating, vote_count = get_sub_rating_and_dl_link(subtitle_link)
-            if len(sub_info) == 2:
-                yield [download_link, rating, vote_count, "X", release]  # H-i sub
+        if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance)) and tv_or_movie in release.lower():
+            subtitle_link = subtitle.a.get("href")
+            download_link, rating, vote_count, hi_tag = get_sub_info(subtitle_link)
+            
+            if fallback and search_name not in release.lower() and search_distance and not sub_list:
+                fallback_sub_list.append([download_link, rating, vote_count, hi_tag, release])
             else:
-                yield [download_link, rating, vote_count, "Y", release]  # Non H-i sub
+                fallback = False
+                sub_list.append([download_link, rating, vote_count, hi_tag, release])
+            
+    if not sub_list:
+        return fallback_sub_list, True
+        
+    return sub_list, False
 
 
 def show_available_subtitles(subtitles, args_auto, fallback):
     """Print all available subtitles and choose one from them."""
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
-    if not subtitles:
-        return None
 
     if fallback:
         print(" Nr\tRating\tVotes\tH-i\tRelease")
@@ -218,8 +229,8 @@ def handle_sub(sub_zip, download_dir, release_name):
 
 def main(arguments, media_dir):
     global user_agent
-    user_agent = UserAgent(fallback = "# Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:15.0) Gecko/20100101 Firefox/15.0.1").random
-
+    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:57.0) Gecko/20100101 Firefox/57.0").random
+    
     releases = check_media_dir(Path(media_dir))
     if len(releases) == 1:
         dirs = releases
@@ -234,22 +245,17 @@ def main(arguments, media_dir):
 
         search_name = check_release_tag(release_name)
         print("\nSearching {} subtitles for {}".format(arguments.language.capitalize(), search_name))
-        subtitles = find_subs(search_name, arguments.language.lower(), False)
-        chosen_sub = show_available_subtitles(subtitles, arguments.auto, False)
+        subtitles, fallback = find_subs(search_name, arguments.language.lower())
+        
+        if not subtitles and release == dirs[-1]:
+            sys.exit("No subtitles found. Exited.")
+        elif not subtitles:
+            print("No subtitles found. Continuing search.")
+            continue
+            
+        chosen_sub = show_available_subtitles(subtitles, arguments.auto, fallback)
 
-        if not chosen_sub:  # Fallback (list all available releases/subs)
-            print("No subtitles for {} found. Showing all subtitles.".format(search_name))
-            time.sleep(1)  # 
-            subtitles = find_subs(search_name, arguments.language.lower(), True)
-            chosen_sub = show_available_subtitles(subtitles, arguments.auto, True)
-
-            if not chosen_sub and release == dirs[-1]:
-                sys.exit("No subtitles found. Exited.")
-            elif not chosen_sub:
-                print("No subtitles found. Continuing search.")
-                continue
-
-        sub_link = requests.get("https://subscene.com/{}".format(chosen_sub), user_agent)
+        sub_link = requests.get("https://subscene.com/{}".format(chosen_sub), headers = {"user-agent": user_agent}, timeout = 10)
         sub_zip = "{}/subtitle.zip".format(download_dir)
         download_sub(sub_zip, sub_link)
         handle_sub(sub_zip, download_dir, "{}.srt".format(release_name))
@@ -268,9 +274,7 @@ if __name__ == "__main__":
     print("For information about available command line arguments launch the script with -h (--help) argument.\n")
     
     args = parse_arguments()
-    settings = "settings.ini"
-    script_dir = Path(__file__).parent
-    settings_file = script_dir.joinpath(settings)
+    settings_file = Path(__file__).parent.joinpath("settings.ini")
 
     if not settings_file.is_file() or args.config:
         config.create_config(settings_file)
