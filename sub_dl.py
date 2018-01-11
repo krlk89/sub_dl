@@ -4,24 +4,25 @@
    Author: https://github.com/krlk89/sub_dl
 """
 
-import time
-import config
-import difflib
-#import logger # TODO
 import argparse
+import difflib
+import operator
 import os
-import sys
 from pathlib import Path
 import re
-import operator
-import zipfile
 import subprocess
+import sys
+import zipfile
+
 try:
     from fake_useragent import UserAgent
     from bs4 import BeautifulSoup, SoupStrainer
     import requests
 except ImportError:
     sys.exit("Missing dependencies. Type 'pip install -r requirements.txt' to install them.")
+    
+import config
+#import logger # TODO
 
 
 def parse_arguments():
@@ -281,4 +282,3 @@ if __name__ == "__main__":
 
     media_dir = config.read_config(settings_file)
     main(args, media_dir)
-
