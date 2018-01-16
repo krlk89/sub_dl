@@ -2,7 +2,7 @@
 
 sub_dl is a command-line tool that searches and downloads subtitles from [Subscene](https://subscene.com).
 
-**LEGAL NOTICE: As written in the [Subscene Terms of Use Agreement](https://subscene.com/site/legal-information) one is only allowed to use tools like this (scrapers) for personal use!**
+**LEGAL NOTICE: As written in the [Subscene Terms of Use Agreement](https://subscene.com/site/legal-information) one is only allowed to use tools like this (scrapers) for personal, non-commercial use!**
 
 [Python 3](https://www.python.org/) is required.
 
@@ -41,9 +41,9 @@ Downloaded subtitle file will be renamed after the release directory or file.
 **Other files on your computer will not be modified in any way (except when a subtitle file with the same name already exists - then it will be overwritten)**!
     ```
     Nr      Rating  Votes	H-i
-    (1)	    9	    16
-    (2)	    N/A
-    (3)	    10	    16	    X
+    (1)		9		16
+    (2)		N/A
+    (3)		10		16		X
     Choose a subtitle: 3
     Done.
     ```
