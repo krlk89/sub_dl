@@ -68,23 +68,16 @@ def choose_release(dirs):
     choice = input("Choose a release: ")
     dir_count = len(dirs)
     
-    if "-" in choice:
-        try:
+    try:
+        if "-" in choice:
             start, end = map(int, choice.split("-"))
-        except ValueError:
-            return choose_release(dirs)
-    elif "," in choice:
-        try:
+        elif "," in choice:
             choices = (int(i) - 1 for i in choice.split(",") if int(i) <= dir_count)
-        except ValueError:
-            return choose_release(dirs)
-
-        return [dirs[i] for i in choices]
-    else:
-        try:
+            return [dirs[i] for i in choices]
+        else:
             start, end = map(int, [choice, choice])
-        except ValueError:
-            return choose_release(dirs)
+    except ValueError:
+        return choose_release(dirs)
 
     if start == 0 or start > dir_count:
         return choose_release(dirs)
@@ -110,10 +103,9 @@ def get_sub_info(sub_link):
     rating = soup.find("div", class_ = "rating")
     hi = soup.find("span", class_ = "hearing-impaired")
     
+    hi_tag = "Y"
     if hi:
         hi_tag = "X"
-    else:
-        hi_tag = "Y"
     
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
@@ -144,12 +136,12 @@ def find_subs(search_name, language):
         sub_language, release = subtitle.find_all("span")
         sub_language, release = map(str.strip, [sub_language.text, release.text])
         search_distance = difflib.SequenceMatcher(None, search_name, release.lower()).ratio() > 0.9
-        
+
         if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance)) and tv_or_movie in release.lower():
             subtitle_link = subtitle.a.get("href")
             download_link, rating, vote_count, hi_tag = get_sub_info(subtitle_link)
             
-            if fallback and search_name not in release.lower() and search_distance and not sub_list:
+            if fallback and search_name not in release.lower() and search_distance:
                 fallback_sub_list.append([download_link, rating, vote_count, hi_tag, release])
             else:
                 fallback = False
