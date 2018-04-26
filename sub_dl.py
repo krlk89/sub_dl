@@ -20,7 +20,7 @@ try:
     import requests
 except ImportError:
     sys.exit("Missing dependencies. Type 'pip install -r requirements.txt' to install them.")
-    
+
 import config
 #import logger # TODO
 
@@ -42,7 +42,7 @@ def tv_series_or_movie(release_name):
     match = re.search("\.S\d+E\d+\.", release_name, re.IGNORECASE)
     if match:
         return match.group().lower()
-    
+
     return ""
 
 
@@ -55,7 +55,7 @@ def check_media_dir(media_dir):
     dirs = [x for x in media_dir.iterdir() if x.suffix not in sub_extensions]
     if not dirs:
         sys.exit("No releases in {}.".format(media_dir))
-    
+
     dirs.sort()
     for nr, release in enumerate(dirs, 1):
         print(" ({})  {}".format(nr, release.name))
@@ -67,7 +67,7 @@ def choose_release(dirs):
     """Choose release(s) for which you want to download subtitles."""
     choice = input("Choose a release: ")
     dir_count = len(dirs)
-    
+
     try:
         if "-" in choice:
             start, end = map(int, choice.split("-"))
@@ -95,18 +95,18 @@ def check_release_tag(release_name):
     return release_name
 
 
-def get_sub_info(sub_link):
+def get_sub_info(sub_link, session):
     """Return subtitle download link, rating, vote count and tag for hearing impaired."""
-    r = requests.get("https://subscene.com{}".format(sub_link), headers = {"user-agent": user_agent}, timeout = 10)
+    r = session.get("https://subscene.com{}".format(sub_link), timeout = 10)
     soup = BeautifulSoup(r.text, "lxml", parse_only = SoupStrainer("li", class_ = "clearfix"))
     dl_link = soup.find(id = "downloadButton").get("href")
     rating = soup.find("div", class_ = "rating")
     hi = soup.find("span", class_ = "hearing-impaired")
-    
+
     hi_tag = "Y"
     if hi:
         hi_tag = "X"
-    
+
     if rating:
         vote_count = rating.attrs["data-hint"].split()[1]
         return dl_link, int(rating.span.text), int(vote_count), hi_tag
@@ -114,42 +114,42 @@ def get_sub_info(sub_link):
     return dl_link, -1, -1, hi_tag
 
 
-def find_subs(search_name, language):
+def find_subs(search_name, language, session):
     """Return list of lists for subtitle info.
        0 - Download link
        1 - Rating
        2 - Vote count
-       3 - Hearing-impaired tag (H-i = "X", Non H-i = "Y" (for correct sorting))
+       3 - Hearing-impaired tag (H-i = "X", Non H-i = "Y" [for correct sorting])
        4 - Release name (for fallback search results)
     """
     fallback = True
     sub_list = []
     fallback_sub_list = []
-    search_name = search_name.replace(" ", ".").lower()  # Local file or dir name
+    search_name = search_name.replace(" ", ".").lower()  # Local file/dir name
     tv_or_movie = tv_series_or_movie(search_name)
-    
-    r = requests.get("https://subscene.com/subtitles/release?", params = {"q": search_name}, headers = {"user-agent": user_agent}, timeout = 10)
+
+    r = session.get("https://subscene.com/subtitles/release?", params = {"q": search_name}, timeout = 10)
     soup = BeautifulSoup(r.text, "lxml", parse_only = SoupStrainer("td", class_ = "a1"))
     soup_data = soup.find_all("td")
-    
+
     for subtitle in soup_data:
         sub_language, release = subtitle.find_all("span")
         sub_language, release = map(str.strip, [sub_language.text, release.text])
-        search_distance = difflib.SequenceMatcher(None, search_name, release.lower()).ratio() > 0.9
+        is_close_match = difflib.SequenceMatcher(None, search_name, release.lower()).ratio() > 0.9
 
-        if language == sub_language.lower() and (search_name in release.lower() or (fallback and search_distance)) and tv_or_movie in release.lower():
+        if language == sub_language.lower() and (search_name in release.lower() or (fallback and is_close_match)) and tv_or_movie in release.lower():
             subtitle_link = subtitle.a.get("href")
-            download_link, rating, vote_count, hi_tag = get_sub_info(subtitle_link)
-            
-            if fallback and search_name not in release.lower() and search_distance:
+            download_link, rating, vote_count, hi_tag = get_sub_info(subtitle_link, session)
+
+            if fallback and search_name not in release.lower() and is_close_match:
                 fallback_sub_list.append([download_link, rating, vote_count, hi_tag, release])
             else:
                 fallback = False
                 sub_list.append([download_link, rating, vote_count, hi_tag, release])
-            
+
     if not sub_list:
         return fallback_sub_list, True
-        
+
     return sub_list, False
 
 
@@ -158,9 +158,9 @@ def show_available_subtitles(subtitles, args_auto, fallback):
     subtitles = sorted(subtitles, key = operator.itemgetter(3, 1, 2), reverse = True)
 
     if fallback:
-        print(" Nr\tRating\tVotes\tH-i\tRelease")
+        print("\nNo exact matches found, showing fallback results.\n Nr\tRating\tVotes\tH-i\tRelease")
     else:
-        print(" Nr\tRating\tVotes\tH-i")
+        print("\n Nr\tRating\tVotes\tH-i")
 
     for nr, sub in enumerate(subtitles, start = 1):
         if not fallback:
@@ -169,7 +169,7 @@ def show_available_subtitles(subtitles, args_auto, fallback):
             sub[1], sub[2] = "N/A", ""
         if sub[3] == "Y":
             sub[3] = ""
-            
+
         print(" ({})\t{}\t{}\t{}\t{}".format(nr, sub[1], sub[2], sub[3], sub[4]))
 
     if args_auto or len(subtitles) == 1:
@@ -198,74 +198,79 @@ def unpack_sub(sub_zip, sub_file, download_dir):
         if len(zip.namelist()) > 1:
             print("Multiple files in the archive. First file will be chosen.")
         new_sub_file = zip.namelist()[0]
-        
+
         if Path(sub_file).exists():
             print("Previous subtitle file will be overwritten.")
             Path(sub_file).unlink()
-            
+
         zip.extractall(str(download_dir))
-        
+
         return new_sub_file
-        
+
 
 def handle_sub(sub_zip, download_dir, release_name):
     """Handle downloaded subtitle file."""
     sub_file = "{}/{}".format(download_dir, release_name)
-    
+
     if zipfile.is_zipfile(sub_zip):
-        new_sub_file = unpack_sub(sub_zip, sub_file, download_dir) 
+        new_sub_file = unpack_sub(sub_zip, sub_file, download_dir)
     else:
         new_sub_file = sub_zip
-                
+
     Path("{}/{}".format(download_dir, new_sub_file)).rename(sub_file)
 
 
 def main(arguments, media_dir):
-    global user_agent
-    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:57.0) Gecko/20100101 Firefox/57.0").random
-    
+    """Main function."""
     releases = check_media_dir(Path(media_dir))
-    if len(releases) == 1:
+    if not releases:
+        sys.exit("Media dir is empty. Exited")
+    elif len(releases) == 1:
         dirs = releases
     else:
         dirs = choose_release(releases)
 
-    for release in dirs:
-        if release.is_dir():
-            download_dir, release_name = release, release.name
-        else:
-            download_dir, release_name = media_dir, release.stem  # Removes extension
+    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0").random
+    with requests.Session() as session:
+        session.headers.update({"user-agent": user_agent})
 
-        search_name = check_release_tag(release_name)
-        print("\nSearching {} subtitles for {}".format(arguments.language.capitalize(), search_name))
-        subtitles, fallback = find_subs(search_name, arguments.language.lower())
-        
-        if not subtitles and release == dirs[-1]:
-            sys.exit("No subtitles found. Exited.")
-        elif not subtitles:
-            print("No subtitles found. Continuing search.")
-            continue
-            
-        chosen_sub = show_available_subtitles(subtitles, arguments.auto, fallback)
+        for release in dirs:
+            if release.is_dir():
+                download_dir, release_name = release, release.name
+            else:
+                download_dir, release_name = media_dir, release.stem  # Removes extension (for searching)
 
-        sub_link = requests.get("https://subscene.com/{}".format(chosen_sub), headers = {"user-agent": user_agent}, timeout = 10)
-        sub_zip = "{}/subtitle.zip".format(download_dir)
-        download_sub(sub_zip, sub_link)
-        handle_sub(sub_zip, download_dir, "{}.srt".format(release_name))
-        Path(sub_zip).unlink()  # Deletes subtitle.zip
+            search_name = check_release_tag(release_name)
+            print("\nSearching {} subtitles for {}".format(arguments.language.capitalize(), search_name))
+            subtitles, fallback = find_subs(search_name, arguments.language.lower(), session)
 
-        if arguments.watch and release.is_file() and len(dirs) == 1:
-            try:
-                subprocess.call(["vlc", str(release)])
-            except FileNotFoundError:
-                sys.exit("VLC is not installed or you are not using a Linux based system.")
+            if not subtitles:
+                if release == dirs[-1]:
+                    sys.exit("No subtitles found. Exited.")
+
+                print("No subtitles found. Continuing search.")
+                continue
+
+            chosen_sub = show_available_subtitles(subtitles, arguments.auto, fallback)
+
+            sub_link = session.get("https://subscene.com/{}".format(chosen_sub))
+            sub_zip = "{}/subtitle.zip".format(download_dir)
+            download_sub(sub_zip, sub_link)
+            handle_sub(sub_zip, download_dir, "{}.srt".format(release_name))
+            Path(sub_zip).unlink()  # Deletes subtitle.zip
+
+            if arguments.watch and release.is_file() and len(dirs) == 1:
+                try:
+                    subprocess.call(["vlc", str(release)])
+                except FileNotFoundError:
+                    sys.exit("VLC is not installed or you are not using a Linux based system.")
 
     sys.exit("Done.")
 
 
 if __name__ == "__main__":
     print("For information about available command line arguments launch the script with -h (--help) argument.\n")
-    
+
     args = parse_arguments()
     settings_file = Path(__file__).parent.joinpath("settings.ini")
 
@@ -274,3 +279,4 @@ if __name__ == "__main__":
 
     media_dir = config.read_config(settings_file)
     main(args, media_dir)
+
