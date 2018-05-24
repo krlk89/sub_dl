@@ -30,6 +30,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description = "sub_dl: Subscene subtitle downloader.")
     parser.add_argument("-c", "--config", action = "store_true", help = "configure your media directory")
     parser.add_argument("-l", "--language", type = str, default = "english", help = "specify desired subtitles language (overrules default which is English)")
+    parser.add_argument("-d", "--directory", nargs = "+", help ="specify media directory (overrules default temporarily)")
     parser.add_argument("-a", "--auto", action = "store_true", help = "automatically choose best-rated non hearing-impaired subtitles")
     parser.add_argument("-w", "--watch", action = "store_true", help = "launch VLC after downloading subtitles")
 
@@ -230,7 +231,7 @@ def main(arguments, media_dir):
     else:
         dirs = choose_release(releases)
 
-    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0").random
+    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0").random
     with requests.Session() as session:
         session.headers.update({"user-agent": user_agent})
 
@@ -277,6 +278,20 @@ if __name__ == "__main__":
     if not settings_file.is_file() or args.config:
         config.create_config(settings_file)
 
-    media_dir = config.read_config(settings_file)
-    main(args, media_dir)
+    dir = args.directory
+    if dir:
+        dir = " ".join(args.directory)
+        temp_dir = Path(config.read_config(settings_file)).joinpath(dir)
 
+        if Path(temp_dir).is_dir():
+            # dir inside media dir
+            media_dir = temp_dir
+        elif Path(dir).is_dir():
+            media_dir = dir
+        else:
+            print("Non-existing directory given as an argument. Using media directory from the settings file instead.")
+            media_dir = config.read_config(settings_file)
+    else:
+        media_dir = config.read_config(settings_file)
+
+    main(args, media_dir)
