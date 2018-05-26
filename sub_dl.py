@@ -7,7 +7,6 @@
 import argparse
 import difflib
 import operator
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -53,15 +52,15 @@ def check_media_dir(media_dir):
 
     print("Checking media directory: {}".format(media_dir))
     # Files and release dirs in media dir
-    dirs = [x for x in media_dir.iterdir() if x.suffix not in sub_extensions]
-    if not dirs:
+    releases = [release for release in media_dir.iterdir() if release.suffix not in sub_extensions]
+    if not releases:
         sys.exit("No releases in {}.".format(media_dir))
 
-    dirs.sort()
-    for nr, release in enumerate(dirs, 1):
+    releases.sort()
+    for nr, release in enumerate(releases, 1):
         print(" ({})  {}".format(nr, release.name))
 
-    return dirs
+    return releases
 
 
 def choose_release(dirs):
@@ -270,18 +269,21 @@ def main(arguments, media_dir):
 
 
 if __name__ == "__main__":
+    args = parse_arguments()
+
     print("For information about available command line arguments launch the script with -h (--help) argument.\n")
 
-    args = parse_arguments()
     settings_file = Path(__file__).parent.joinpath("settings.ini")
 
     if not settings_file.is_file() or args.config:
         config.create_config(settings_file)
 
+    media_dir = config.read_config(settings_file)
+
     dir = args.directory
     if dir:
         dir = " ".join(args.directory)
-        temp_dir = Path(config.read_config(settings_file)).joinpath(dir)
+        temp_dir = Path(media_dir).joinpath(dir)
 
         if Path(temp_dir).is_dir():
             # dir inside media dir
@@ -290,8 +292,5 @@ if __name__ == "__main__":
             media_dir = dir
         else:
             print("Non-existing directory given as an argument. Using media directory from the settings file instead.")
-            media_dir = config.read_config(settings_file)
-    else:
-        media_dir = config.read_config(settings_file)
 
     main(args, media_dir)
