@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Download subtitles from Subscene (https://subscene.com).
+"""Script for downloading subtitles from Subscene (https://subscene.com).
    Author: https://github.com/krlk89/sub_dl
 """
 
@@ -20,8 +20,8 @@ try:
 except ImportError:
     sys.exit("Missing dependencies. Type 'pip install -r requirements.txt' to install them.")
 
-import config
-#import logger # TODO
+import sub_dl_config
+#import sub_dl_logger # TODO
 
 
 def parse_arguments():
@@ -230,7 +230,7 @@ def main(arguments, media_dir):
     else:
         dirs = choose_release(releases)
 
-    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0").random
+    user_agent = UserAgent(fallback = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:61.0) Gecko/20100101 Firefox/60.0").random
     with requests.Session() as session:
         session.headers.update({"user-agent": user_agent})
 
@@ -276,9 +276,9 @@ if __name__ == "__main__":
     settings_file = Path(__file__).parent.joinpath("settings.ini")
 
     if not settings_file.is_file() or args.config:
-        config.create_config(settings_file)
+        sub_dl_config.create_config(settings_file)
 
-    media_dir = config.read_config(settings_file)
+    media_dir = sub_dl_config.read_config(settings_file)
 
     dir = args.directory
     if dir:
