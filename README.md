@@ -8,8 +8,11 @@ sub_dl is a command-line tool that searches and downloads subtitles from [Subsce
 
 ## Dependencies:
 * [fake-useragent](https://pypi.python.org/pypi/fake-useragent)
+* [lxml](https://lxml.de/)
 * [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 * [Requests](http://docs.python-requests.org/en/master/)
+
+Note: You can also substitute the lxml parser with a built-in one (*e.g.* html.parser).
 
 Easiest way to install all the dependencies:
 
@@ -53,16 +56,23 @@ If no subtitles are found for the specific release, all available releases will 
 4. For help and available command line arguments:
     ```
     ./sub_dl.py -h
-    usage: sub_dl.py [-h] [-c] [-l LANGUAGE] [-a] [-w]
+    usage: sub_dl.py [-h] [-c] [-l LANGUAGE] [-d DIRECTORY [DIRECTORY ...]] [-a]
+                     [-w]
 
-    sub-dl: Subscene subtitle downloader.
+    sub_dl: Subscene subtitle downloader.
 
     optional arguments:
-      -h, --help    show this help message and exit
-      -c, --config  configure your media directory and subtitle language
-      -l LANGUAGE, --language LANGUAGE  specify desired subtitle language (overrules default which is English)
-      -a, --auto    automatically choose best-rated non hearing-impaired subtitle
-      -w, --watch   launch VLC after downloading subtitles
+      -h, --help            show this help message and exit
+      -c, --config          configure your media directory
+      -l LANGUAGE, --language LANGUAGE
+                            specify desired subtitles language (overrules default
+                            which is English)
+      -d DIRECTORY [DIRECTORY ...], --directory DIRECTORY [DIRECTORY ...]
+                            specify media directory (overrules default
+                            temporarily)
+      -a, --auto            automatically choose best-rated non hearing-impaired
+                            subtitles
+      -w, --watch           launch VLC after downloading subtitles
     ```
 
 Enjoy!
