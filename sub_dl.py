@@ -39,7 +39,7 @@ def parse_arguments():
 def tv_series_or_movie(release_name):
     """Check if release is a tv show. If yes then fallback search shows only subtitles for the right episode.
     Return empty string for movies so that comparison works in find_subs function."""
-    match = re.search("\.S\d+E\d+\.", release_name, re.IGNORECASE)
+    match = re.search(r"\.S\d+E\d+\.", release_name, re.IGNORECASE)
     if match:
         return match.group().lower()
 
