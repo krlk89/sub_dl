@@ -1,4 +1,1 @@
-fake-useragent
-lxml
-beautifulsoup4
 requests
