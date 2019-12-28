@@ -1,3 +1,5 @@
+# NOT WORKING ANYMORE, USE THE MASTER BRANCH
+
 # sub_dl: Subscene subtitle downloader
 
 sub_dl is a command-line tool that searches and downloads subtitles from [Subscene](https://subscene.com).
